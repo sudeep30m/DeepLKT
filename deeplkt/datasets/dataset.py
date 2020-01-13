@@ -6,7 +6,7 @@ from shapely.geometry import Polygon
 import torch
 from torch.utils.data import Dataset, DataLoader
 from deeplkt.utils.visualise import draw_bbox
-
+from deeplkt.utils.bbox import cxy_wh_2_rect, get_min_max_bbox
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class LKTDataset(Dataset):
@@ -106,7 +106,9 @@ class LKTDataset(Dataset):
     def get_data_point(self, vid_idx, idx):
         dp = self.get_point(vid_idx, idx)
         # dp = [ele.unsqueeze(0) for ele in dp]
-    
+        # bbox = get_min_max_bbox(dp[-1])
+        # bbox = cxy_wh_2_rect(bbox)
+
         return dp[:-1], dp[-1]
 
 

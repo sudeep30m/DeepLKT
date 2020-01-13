@@ -34,13 +34,13 @@ vot = VotDataset(os.path.join(vot_root_dir,
                        'VOT_results/'), 
                  device)
 
-# alov = AlovDataset(os.path.join(alov_root_dir,
-#                        'ALOV_images/'),
-#                    os.path.join(alov_root_dir,
-#                        'ALOV_ann/'),
-#                    os.path.join(alov_root_dir,
-#                        'ALOV_results/'), 
-#                        device)
+alov = AlovDataset(os.path.join(alov_root_dir,
+                       'ALOV_images/'),
+                   os.path.join(alov_root_dir,
+                       'ALOV_ann/'),
+                   os.path.join(alov_root_dir,
+                       'ALOV_results/'), 
+                       device)
 
 
 # train_loader = DataLoader(alov, batch_size=1, shuffle=False)
@@ -58,6 +58,7 @@ params = dotdict({
 nn = PureLKTNet(device, params)
 tracker = LKTTracker(nn)
 model = BaseModel(tracker, 'checkpoint', 'logs')
+model.train_model(alov)
 model.eval_model(vot, 0)
 # model = BaseModel(nn, 'checkpoint', 'logs')
 

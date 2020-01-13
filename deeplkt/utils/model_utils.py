@@ -7,7 +7,7 @@ import numpy as np
 from deeplkt.config import *
 from torch.utils.data.sampler import SubsetRandomSampler
 from shapely.geometry import Polygon
-
+import math
 
 # def save_model(model, optimizer_dict, root_path, folder_name):
 #     folder_path = root_path + folder_name + "/"
@@ -27,6 +27,14 @@ from shapely.geometry import Polygon
 #     json_f.close()
 #     model.path = folder_path
 #     # lines[2] = ro
+
+def last_checkpoint(pth):
+    curr_max = -1
+    for file in os.listdir(pth):
+        if(file[0] != '.'):
+            files = file.split('-')
+            curr_max = max(curr_max, int(files[0]))
+    return curr_max
 
 def img_to_numpy(img):
 
@@ -83,6 +91,18 @@ def load_model(root_folder, folder_name, epoch):
 #     return results
 
 
+def np_data_to_batches(dataset, batch_size, shuffle=False):
+    data = []
+    for x in dataset:
+        data.append(x)
+    data = np.array(data)
+    num_batches = math.ceil(len(data) / batch_size)
+    if(shuffle):
+        np.random.seed(RANDOM_SEED)
+        np.random.shuffle(data)
+
+    return np.split(data, num_batches, 0)
+
 def splitData(dataset):
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
@@ -98,8 +118,6 @@ def splitData(dataset):
     train_sampler = SubsetRandomSampler(train_indices)
     valid_sampler = SubsetRandomSampler(val_indices)
 
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, 
-                                            sampler=train_sampler)
-    validation_loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE,
-                                                    sampler=valid_sampler)
-    return train_loader, validation_loader
+    train_loader = np_data_to_batches(train_sampler, BATCH_SIZE)
+    valid_loader = np_data_to_batches(valid_sampler, BATCH_SIZE)
+    return train_loader, valid_loader

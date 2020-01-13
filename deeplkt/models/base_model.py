@@ -6,7 +6,7 @@ import torch.nn as nn
 from deeplkt.utils.util import make_dir, write_to_output_file
 from deeplkt.utils.visualise import outputBboxes
 from deeplkt.config import *
-from deeplkt.utils.model_utils import splitData, calc_iou
+from deeplkt.utils.model_utils import splitData, calc_iou, last_checkpoint
 from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
 import time
 import torch
@@ -34,16 +34,12 @@ class BaseModel():
         trainLoader, validLoader = splitData(dataset)
         print("Train dataset size = ", len(trainLoader.dataset))
         print("Valid dataset size = ", len(validLoader.dataset))
-        curr_max = -1
-        for file in os.listdir(self.checkpoint_dir):
-            if(file[0] != '.'):
-                files = file.split('-')
-                curr_max = max(curr_max, int(files[0]))
 
-        self.load_checkpoint(curr_max, folder=self.checkpoint_dir)
-        print("Checkpoint loaded = {}".format(curr_max))
+        lc = last_checkpoint(self.checkpoint_dir)
+        self.load_checkpoint(lc, folder=self.checkpoint_dir)
+        print("Checkpoint loaded = {}".format(lc))
 
-        for epoch in range(curr_max + 1, NUM_EPOCHS):
+        for epoch in range(lc + 1, NUM_EPOCHS):
             print("EPOCH = ", epoch)
             # bar = progressbar.ProgressBar(maxval=len(dataset), widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
             # bar.start()
@@ -56,6 +52,9 @@ class BaseModel():
             for (x, y) in trainLoader:
                 x = [t.to(self.nn.device) for t in x]
                 y = y.float().to(self.nn.device)
+                # x = get_min_max_bbox(quad_old)
+                # bbox = cxy_wh_2_rect(bbox)
+
                 self.optimizer.zero_grad()
                 try:
                     y_pred = self.nn(x)
@@ -112,14 +111,12 @@ class BaseModel():
         # print(in_video)
         out_video = dataset.get_out_video_path(vid)
         print("Evaluating dataset for video ", vid)
+        # print(data)
         # make_dir(out_video + "/kernel_visualisations/")
         data_x, quad_old = dataset.get_data_point(vid, 0)
         # print(data_x[0].shape)
-        print(quad_old)
-        bbox = get_min_max_bbox(quad_old)
-        print(bbox)
-        bbox = cxy_wh_2_rect(bbox)
-        print(bbox)
+        # bbox = get_min_max_bbox(quad_old)
+        # bbox = cxy_wh_2_rect(bbox)
 
         self.nn.init(data_x[0], bbox)
         self.nn.cnt = 0
