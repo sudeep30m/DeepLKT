@@ -75,6 +75,7 @@ class LKTLayers(nn.Module):
         Returns:
             List of coordinates -- B x N x 2
         """
+
         x_range = torch.arange(coords[0], coords[2], device=self.device)
         y_range = torch.arange(coords[1], coords[3], device=self.device)
         
@@ -188,7 +189,7 @@ class LKTLayers(nn.Module):
         C = sobel_tx.shape[1]
         H = sobel_tx.shape[2]
         W = sobel_tx.shape[3]
-        print(H, W, N)
+        # print(H, W, N)
         assert(N == H * W)
 
         # print(time.process_time() - start_t)

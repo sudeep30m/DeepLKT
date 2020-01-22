@@ -6,7 +6,7 @@ import torch.nn as nn
 from deeplkt.utils.util import make_dir, write_to_output_file
 from deeplkt.utils.visualise import outputBboxes
 from deeplkt.config import *
-from deeplkt.utils.model_utils import splitData, calc_iou, last_checkpoint
+from deeplkt.utils.model_utils import splitData, calc_iou, last_checkpoint, get_batch
 from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
 import time
 import torch
@@ -21,7 +21,7 @@ class BaseModel():
         # self.nn = PureLKTNet(device, params).to(device)
         self.nn = model
         self.checkpoint_dir = join(checkpoint_dir, self.nn.params.info)
-        make_dir(logs_dir)
+        make_dir(self.checkpoint_dir)
         logs_dir = join(logs_dir, self.nn.params.info)
         make_dir(logs_dir)
         self.logs_dir = logs_dir
@@ -32,41 +32,42 @@ class BaseModel():
 
     def train_model(self, dataset):
         trainLoader, validLoader = splitData(dataset)
-        print("Train dataset size = ", len(trainLoader.dataset))
-        print("Valid dataset size = ", len(validLoader.dataset))
+
+        print("Train dataset size = ", len(trainLoader))
+        print("Valid dataset size = ", len(validLoader))
 
         lc = last_checkpoint(self.checkpoint_dir)
-        self.load_checkpoint(lc, folder=self.checkpoint_dir)
-        print("Checkpoint loaded = {}".format(lc))
+        if(lc != -1):
+            self.load_checkpoint(lc, folder=self.checkpoint_dir)
+            print("Checkpoint loaded = {}".format(lc))
 
         for epoch in range(lc + 1, NUM_EPOCHS):
             print("EPOCH = ", epoch)
-            # bar = progressbar.ProgressBar(maxval=len(dataset), widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-            # bar.start()
-            self.nn = self.nn.train()
+            self.nn.model = self.nn.model.train()
             train_loss = 0.0
             i = 0
             print("Training for epoch:{}".format(epoch))
             start_time = time.time()
-
-            for (x, y) in trainLoader:
-                x = [t.to(self.nn.device) for t in x]
-                y = y.float().to(self.nn.device)
-                # x = get_min_max_bbox(quad_old)
-                # bbox = cxy_wh_2_rect(bbox)
-
+            print("Total batches = ", len(trainLoader))
+            for batch in trainLoader:
+                # print(batch)
+                x, y = get_batch(dataset, batch)
+                y = torch.tensor(y, device=self.nn.model.device).float()
                 self.optimizer.zero_grad()
-                try:
-                    y_pred = self.nn(x)
-                except Exception as e:
-                    print(e)
-                    continue
+                bbox = get_min_max_bbox(x[2])
+                bbox = cxy_wh_2_rect(bbox)
+                self.nn.init(x[0], bbox)
+                y_pred = self.nn.train(x[1])
+                # print(y[0])
+                # print(y_pred[0])
                 loss = self.loss(y_pred, y)
+                print(loss)
                 train_loss += loss
                 loss.backward()
                 self.optimizer.step()
+                print(i)
                 i += 1
-                # bar.update(i)
+
             train_loss /= i
             print("Total training examples = ", i)
             print("Training time for {} epoch = {}".format(epoch, time.time() - start_time))
@@ -78,16 +79,16 @@ class BaseModel():
             valid_loss = 0.0
             i = 0
             start_time = time.time()
+
             with torch.no_grad():
-                for (x, y) in validLoader:
-                    x = [t.to(self.nn.device) for t in x]
-                    y = y.float().to(self.nn.device)
-                    try:
-                        y_pred = self.nn(x)
-                    except Exception as e:
-                        print(e)
-                        torch.cuda.empty_cache()
-                        continue
+
+                for batch in validLoader:
+                    x, y = get_batch(dataset, batch)
+                    y = torch.tensor(y, device=self.nn.model.device).float()
+                    bbox = get_min_max_bbox(x[2])
+                    bbox = cxy_wh_2_rect(bbox)
+                    self.nn.init(x[0], bbox)
+                    y_pred = self.nn.train(x[1])
                     loss = self.loss(y_pred, y)
                     valid_loss += loss
                     i += 1
@@ -114,9 +115,13 @@ class BaseModel():
         # print(data)
         # make_dir(out_video + "/kernel_visualisations/")
         data_x, quad_old = dataset.get_data_point(vid, 0)
+        data_x[0] = data_x[0][np.newaxis, :, :, :]
+        data_x[2] = data_x[2][np.newaxis, :]
+        print(data_x[2].shape)
+        print(data_x[0].shape)
         # print(data_x[0].shape)
-        # bbox = get_min_max_bbox(quad_old)
-        # bbox = cxy_wh_2_rect(bbox)
+        bbox = get_min_max_bbox(data_x[2])
+        bbox = cxy_wh_2_rect(bbox)
 
         self.nn.init(data_x[0], bbox)
         self.nn.cnt = 0
@@ -127,7 +132,9 @@ class BaseModel():
                 # try:
                 # print(quad_old)
                 # print("---------------")
-                quad = self.nn.track(data_x[1])
+                data_x[0] = data_x[0][np.newaxis, :, :, :]
+
+                quad = self.nn.track(data_x[0])
                 # print(quad)
                 quad_num = get_region_from_corner(quad)
                 # print(quad_num)
@@ -138,9 +145,9 @@ class BaseModel():
                 # print(img_pair)
                 # quad_num = quad.detach().cpu().numpy()
                 # quad_old_num = quad_old.cpu().numpy()
-                quads.append(quad_num)
+                quads.append(quad_num[0])
                 try:
-                    iou = calc_iou(quad_num, quad_old)
+                    iou = calc_iou(quad_num[0], quad_old)
                     iou_list.append(iou)
                 except Exception as e: 
                     print(e)
@@ -168,7 +175,7 @@ class BaseModel():
             os.mkdir(folder)
         filepath = join(folder, str(epoch) + '-' + filename)
 
-        torch.save({ 'state_dict' : self.nn.state_dict()}, filepath)
+        torch.save({ 'state_dict' : self.nn.model.state_dict()}, filepath)
     
     def load_checkpoint(self, epoch, folder='checkpoint', filename='checkpoint.pth'):
         # folder = join(folder, self.nn.params.info)
@@ -176,4 +183,4 @@ class BaseModel():
         if not os.path.exists(filepath):
             raise("No model in path {}".format(filepath))            
         checkpoint = torch.load(filepath)
-        self.nn.load_state_dict(checkpoint['state_dict'])
+        self.nn.model.load_state_dict(checkpoint['state_dict'])

@@ -91,33 +91,71 @@ def load_model(root_folder, folder_name, epoch):
 #     return results
 
 
-def np_data_to_batches(dataset, batch_size, shuffle=False):
-    data = []
-    for x in dataset:
-        data.append(x)
-    data = np.array(data)
+def np_data_to_batches(data, batch_size):
+    # data = []
+    # for x in dataset:
+    #     data.append(x)
+    # data = np.array(data)
     num_batches = math.ceil(len(data) / batch_size)
-    if(shuffle):
-        np.random.seed(RANDOM_SEED)
-        np.random.shuffle(data)
 
-    return np.split(data, num_batches, 0)
+    return np.array_split(data, num_batches, 0)
+
 
 def splitData(dataset):
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     
     train_examples = min(dataset_size, TRAIN_EXAMPLES)
-    split = int(np.floor(VALIDATION_SPLIT * train_examples))
+    split = int(np.floor( (1.0- VALIDATION_SPLIT) * train_examples))
     if SHUFFLE_TRAIN:
         np.random.seed(RANDOM_SEED)
         np.random.shuffle(indices)
-    train_indices, val_indices = indices[split:train_examples], indices[:split]
+    train_indices, val_indices = indices[:split], indices[split:train_examples] 
 
     # Creating PT data samplers and loaders:
-    train_sampler = SubsetRandomSampler(train_indices)
-    valid_sampler = SubsetRandomSampler(val_indices)
+    # train_sampler = SubsetRandomSampler(train_indices)
+    # valid_sampler = SubsetRandomSampler(val_indices)
 
-    train_loader = np_data_to_batches(train_sampler, BATCH_SIZE)
-    valid_loader = np_data_to_batches(valid_sampler, BATCH_SIZE)
+    train_loader = np_data_to_batches(np.array(train_indices), BATCH_SIZE)
+    valid_loader = np_data_to_batches(np.array(val_indices), BATCH_SIZE)
     return train_loader, valid_loader
+
+def get_batch(dataset, indices):
+    # n = len(indices)
+    x, y = dataset[0]
+    m = len(x)
+    # print(m)
+    data_x = [[] for x in np.arange(m)]
+    data_y = []
+    for ind in indices:
+        # print(ind)
+        vid, idx = dataset.get_video_id(ind)
+        x, y = dataset.get_train_data_point(vid, idx)
+        # print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
+        # print(y)
+        for j in range(m):
+            data_x[j].append(x[j])
+        data_y.append(y)
+    data_x = [np.array(x) for x in data_x]
+    return data_x, np.array(data_y)
+
+# def splitData(dataset, batch_size, shuffle):
+#     # data = []
+#     # for x in dataset:
+#     #     data.append(x)
+#     data = np.array(data)
+#     train_examples = min(len(dataset), TRAIN_EXAMPLES)
+#     split = int(np.floor(VALIDATION_SPLIT * train_examples))
+
+#     if(shuffle):
+#         np.random.seed(RANDOM_SEED)
+#         np.random.shuffle(data)
+#     train_data, val_data = data[split:train_examples], data[:split]
+
+#     # Creating PT data samplers and loaders:
+#     # train_sampler = SubsetRandomSampler(train_indices)
+#     # valid_sampler = SubsetRandomSampler(val_indices)
+
+#     train_loader = np_data_to_batches(train_data, batch_size)
+#     valid_loader = np_data_to_batches(valid_sampler, batch_size)
+#     return train_loader, valid_loader

@@ -79,7 +79,7 @@ def IoU(rect1, rect2):
 def cxy_wh_2_rect(pos):
     """ convert (cx, cy, w, h) to (x1, y1, w, h), 0-index
     """
-    return np.array([pos[0]-pos[2]/2, pos[1]-pos[3]/2, pos[2], pos[3]])
+    return np.array([pos[:, 0]-pos[:, 2]/2, pos[:, 1]-pos[:, 3]/2, pos[:, 2], pos[:, 3]]).transpose()
 
 
 def rect_2_cxy_wh(rect):
@@ -133,24 +133,26 @@ def get_axis_aligned_bbox(region):
 def get_min_max_bbox(region):
     """ convert region to (cx, cy, w, h) that represent by min-max box
     """
-    nv = region.size
-    if nv == 8:
-        cx = np.mean(region[0::2])
-        cy = np.mean(region[1::2])
-        x1 = min(region[0::2])
-        x2 = max(region[0::2])
-        y1 = min(region[1::2])
-        y2 = max(region[1::2])
-        w = x2 - x1
-        h = y2 - y1
-    else:
-        x = region[0]
-        y = region[1]
-        w = region[2]
-        h = region[3]
-        cx = x+w/2
-        cy = y+h/2
-    return [cx, cy, w, h]
+    # print(region.shape)
+    # nv = region.size
+    # if nv == 8:
+    cx = np.mean(region[:, 0::2], 1)
+    cy = np.mean(region[:, 1::2], 1)
+    x1 = np.min(region[:, 0::2], 1)
+    x2 = np.max(region[:, 0::2], 1)
+    y1 = np.min(region[:, 1::2], 1)
+    y2 = np.max(region[:, 1::2], 1)
+    # print(cx.shape, cy.shape, x1.shape, x2.shape, y1.shape, y2.shape)
+    w = x2 - x1
+    h = y2 - y1
+    # else:
+    #     x = region[0]
+    #     y = region[1]
+    #     w = region[2]
+    #     h = region[3]
+    #     cx = x+w/2
+    #     cy = y+h/2
+    return np.array([cx, cy, w, h]).transpose()
 
 def get_min_max_bbox_torch(region):
     """ convert region to (cx, cy, w, h) that represent by min-max box
@@ -173,13 +175,24 @@ def get_min_max_bbox_torch(region):
         h = region[3]
         cx = x+w/2
         cy = y+h/2
-    return [cx, cy, w, h]
+    return np.array([cx, cy, w, h]).transpose()
 
+def get_region_from_center(rect):
+    """ convert (x1, y1, w, h) to region
+    """
+    
+    x1 = rect[:, 0] - rect[:, 2] / 2.0
+    y1 = rect[:, 1] - rect[:, 3] / 2.0
+    x2 = rect[:, 0] + rect[:, 2] / 2.0
+    y2 = rect[:, 1] + rect[:, 3] / 2.0
+
+    return np.array([x1, y2, x1, y1, x2, y1, x2, y2]).transpose() 
 
 def get_region_from_corner(rect):
     """ convert (x1, y1, w, h) to region
     """
     
-    rect[2] += rect[0]
-    rect[3] += rect[1]
-    return [rect[0], rect[3], rect[0], rect[1], rect[2], rect[1], rect[2], rect[3]]
+    rect[:, 2] += rect[:, 0]
+    rect[:, 3] += rect[:, 1]
+    return np.array([rect[:, 0], rect[:, 3], rect[:, 0], rect[:, 1], rect[:, 2], 
+                    rect[:, 1], rect[:, 2], rect[:, 3]]).transpose()

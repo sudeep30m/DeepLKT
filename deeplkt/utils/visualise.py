@@ -146,7 +146,8 @@ def outputBboxes(input_images_path, output_images_path, output_file_path):
             #     I = [[x1, y1], [x1, y2], [x2, y2], [x2, y1] ] #If rect BB
             I = [x1, y1, xbl, ybl, x2, y2, xtr, ytr] #If free BB
             
-            T_PATH = input_images_path +str(format(img_index, '0'))+'.jpg'
+            T_PATH = input_images_path +str(format(img_index, '08d'))+'.jpg'
+            print(T_PATH)
             img_t = cv2.imread(T_PATH)
             i_gt = draw_bbox(img_t.copy(), I)
             W_PATH = output_images_path +str(format(img_index, '08d'))+'.jpg'

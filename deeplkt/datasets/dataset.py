@@ -6,7 +6,8 @@ from shapely.geometry import Polygon
 import torch
 from torch.utils.data import Dataset, DataLoader
 from deeplkt.utils.visualise import draw_bbox
-from deeplkt.utils.bbox import cxy_wh_2_rect, get_min_max_bbox
+from deeplkt.utils.bbox import cxy_wh_2_rect, get_min_max_bbox, get_region_from_center
+from deeplkt.config import *
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class LKTDataset(Dataset):
@@ -36,11 +37,14 @@ class LKTDataset(Dataset):
     def __len__(self):
         return self.num_samples
     
+    def get_video_id(self, ind):
+        return self.index_dict[ind]
+    
     def __getitem__(self, index):
         vidx, idx = self.index_dict[index]
         point =  self.get_point(vidx, idx)
         # point = [p.unsqueeze(0) for p in point]
-        return (point[:-1], point[-1])
+        return point[:-1], point[-1]
 
 
     def get_orig_sample(self, vid_idx, idx, i=1):
@@ -101,6 +105,51 @@ class LKTDataset(Dataset):
         # data[4] = torch.from_numpy(data[4]).to(self.device).float()
         
         return data
+
+
+    def get_modified_target(self, x, bbox):
+        bbox = bbox[np.newaxis, :]
+        bbox0 = x[2][np.newaxis, :]
+        y0 = get_min_max_bbox(bbox0)
+
+        # center_pos = np.array([y0[:, 0]+(y0[:, 2]-1)/2.0,
+        #                             y0[:, 1]+(y0[:, 3]-1)/2.0])
+        # center_pos = center_pos.transpose()
+        size = np.array([y0[:, 2], y0[:, 3]])
+        size = size.transpose()
+        w_z = size[:, 0] + CONTEXT_AMOUNT * np.sum(size, 1)
+        h_z = size[:, 1] + CONTEXT_AMOUNT * np.sum(size, 1)
+        s_z = np.sqrt(w_z * h_z)
+        scale_z = EXEMPLAR_SIZE / s_z
+
+        y = get_min_max_bbox(bbox)
+        y -= y0
+        # print(y)
+        y = y * scale_z
+
+        y[:, 0] += int(INSTANCE_SIZE / 2)
+        y[:, 1] += int(INSTANCE_SIZE / 2)
+        y[:, 2] += int(EXEMPLAR_SIZE)
+        y[:, 3] += int(EXEMPLAR_SIZE)
+        y = get_region_from_center(y)
+        # print("$$$$$$$$$$$$")
+        # print(y)
+        return y[0]        
+        
+
+    def get_train_data_point(self, vid_idx, idx):
+        x, y = self.get_data_point(vid_idx, idx)
+        # print([i.shape for i in x])
+        # print(y.shape)
+        # print("Original y = ", y)
+    
+        y = self.get_modified_target(x, y)
+        # print("Modified y = ", y)
+        # dp = [ele.unsqueeze(0) for ele in dp]
+        # bbox = get_min_max_bbox(dp[-1])
+        # bbox = cxy_wh_2_rect(bbox)
+        # y = torch.from_numpy(y).to(self.device).float()
+        return x, y
 
 
     def get_data_point(self, vid_idx, idx):

@@ -87,7 +87,9 @@ for frame in frames:
                 exit()
 
         init_rect = np.load(file_pth)
-        # print(init_rect)
+        print(init_rect)
+        print(frame.shape)
+        # init_rect = 
         tracker.init(frame, init_rect)
         first_frame = False
     else:
