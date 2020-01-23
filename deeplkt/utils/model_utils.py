@@ -101,14 +101,14 @@ def np_data_to_batches(data, batch_size):
     return np.array_split(data, num_batches, 0)
 
 
-def splitData(dataset):
+def splitData(dataset, params):
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     
-    train_examples = min(dataset_size, TRAIN_EXAMPLES)
-    split = int(np.floor( (1.0- VALIDATION_SPLIT) * train_examples))
-    if SHUFFLE_TRAIN:
-        np.random.seed(RANDOM_SEED)
+    train_examples = min(dataset_size, params.train_examples)
+    split = int(np.floor( (1.0- params.val_split) * train_examples))
+    if params.shuffle_train:
+        np.random.seed(params.random_seed)
         np.random.shuffle(indices)
     train_indices, val_indices = indices[:split], indices[split:train_examples] 
 
@@ -116,8 +116,8 @@ def splitData(dataset):
     # train_sampler = SubsetRandomSampler(train_indices)
     # valid_sampler = SubsetRandomSampler(val_indices)
 
-    train_loader = np_data_to_batches(np.array(train_indices), BATCH_SIZE)
-    valid_loader = np_data_to_batches(np.array(val_indices), BATCH_SIZE)
+    train_loader = np_data_to_batches(np.array(train_indices), params.batch_size)
+    valid_loader = np_data_to_batches(np.array(val_indices), params.batch_size)
     return train_loader, valid_loader
 
 def get_batch(dataset, indices):
@@ -136,7 +136,15 @@ def get_batch(dataset, indices):
         for j in range(m):
             data_x[j].append(x[j])
         data_y.append(y)
-    data_x = [np.array(x) for x in data_x]
+    # print(indices)
+    # print([np.array(x).shape for x in data_x])
+    # try:
+    #     data_x = [np.array(x) for x in data_x]
+    # except:
+    #     from IPython import embed;embed()
+    data_x[2] = np.array(data_x[2])
+    data_x[3] = np.array(data_x[3])
+    
     return data_x, np.array(data_y)
 
 # def splitData(dataset, batch_size, shuffle):

@@ -28,7 +28,7 @@ class BaseTracker(object):
 
 
 class SiameseTracker(BaseTracker):
-    def get_subwindow(self, im, pos, model_sz, original_sz, avg_chans):
+    def get_subwindow(self, im, pos, model_sz, original_sz, avg_chans, ind):
         """
         args:
             im: bgr based image
@@ -79,6 +79,7 @@ class SiameseTracker(BaseTracker):
         # return im_patch
         if not np.array_equal(model_sz, original_sz):
             im_patch = cv2.resize(im_patch, (model_sz, model_sz))
+        cv2.imwrite('cropped/' +str(ind)+".jpg", im_patch)
         im_patch = im_patch.transpose(2, 0, 1)
         im_patch = im_patch[np.newaxis, :, :, :]
         im_patch = im_patch.astype(np.float32)

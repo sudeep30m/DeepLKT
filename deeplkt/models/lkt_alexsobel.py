@@ -1,36 +1,40 @@
 import torch
 import torch.nn as nn
 from deeplkt.models.lkt_layers import LKTLayers
-
+from deeplkt.models.alexsobel import AlexSobel
 from deeplkt.models.base_model import BaseModel
 from deeplkt.utils.model_utils import img_to_numpy
 import numpy as np
 from deeplkt.config import *
 import cv2
+import torch.nn.functional as F
 
 
-class PureLKTNet(LKTLayers):
+class LKTAlexSobelNet(LKTLayers):
 
 
     def __init__(self, device, params):
         super().__init__(device)
         self.params = params
-        
-        self.conv1, self.conv2 = self.sobel_kernels(3)
+        self.sobel = AlexSobel().to(self.device)
+        # self.conv1, self.conv2 = self.sobel_kernels(3)
 
     def template(self, bbox):
         self.bbox = bbox
 
-    def sobel_kernels(self, C):
-        conv1 = nn.Conv2d(C, C, kernel_size=3, stride=1, bias=False, groups=C)
-        conv2 = nn.Conv2d(C, C, kernel_size=3, stride=1, bias=False, groups=C)
-        conv_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype='float')
-        conv_x = np.tile(np.expand_dims(np.expand_dims(conv_x, 0), 0), (C, 1, 1, 1))
-        conv_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype='float') 
-        conv_y = np.tile(np.expand_dims(np.expand_dims(conv_y, 0), 0), (C, 1, 1, 1))
-        conv1.weight = nn.Parameter(torch.from_numpy(conv_x).to(self.device).float())
-        conv2.weight = nn.Parameter(torch.from_numpy(conv_y).to(self.device).float())
-        return conv1, conv2
+    def sobel_layer(self, x):
+        sx, sy = self.sobel(x)
+        out_x = []
+        out_y = []
+
+        for i in range(x.shape[0]):
+            out_x.append(F.conv2d(x[i:i+1, :, :, :], sx[i, :, :, :, :], \
+                stride=1, padding=1, groups=self.sobel.num_channels))
+            out_y.append(F.conv2d(x[i:i+1, :, :, :], sy[i, :, :, :, :], \
+                stride=1, padding=1, groups=self.sobel.num_channels))
+        out_x = torch.cat(out_x)
+        out_y = torch.cat(out_y)
+        return out_x, out_y
 
 
     def forward(self, img_i):
@@ -39,6 +43,7 @@ class PureLKTNet(LKTLayers):
         # print("Image i = ", img_i)
         # img_quad = x[2]
         B, C, h, w = img_tcr.shape
+
         p_init = torch.zeros((B, 6), device=self.device)
         # print(img_i.shape)
         # print(img_tcr.shape)
@@ -61,7 +66,7 @@ class PureLKTNet(LKTLayers):
 
         quad = img_quad
         omega_t = self.form_omega_t(coords, B)
-        sobel_tx, sobel_ty = self.sobel_gradients(img_tcr, self.conv1, self.conv2)
+        sobel_tx, sobel_ty = self.sobel_layer(img_tcr)
         # sx_crop, _ = self.crop_function(sobel_tx, img_quad)
         # sy_crop, _ = self.crop_function(sobel_ty, img_quad)
         # print(sobel_tx.shape, sobel_ty.shape)
@@ -81,11 +86,16 @@ class PureLKTNet(LKTLayers):
         # print(self.params['epsilon'])
         # print(self.params['max_iterations'])
         # print("omega t =  ", omega_t)
+        # print("initial quad = ", quad)
+        # print("initial omega t = ", omega_t)
+        # print("initial warp matrix = ", W)
+        
         while(self.params.max_iterations > 0):
 
             omega_warp = omega_t.bmm(W)
             warped_i = self.sample_layer(img_i, omega_warp).permute(0, 2, 1) # (B x C x N)
             warped_i = warped_i.view(img_tcr.shape)
+                # print("Warped = " ,omega_warp)
 
             # print(warped_i.shape)
             # print()
@@ -110,6 +120,15 @@ class PureLKTNet(LKTLayers):
             # print(itr, img_quad)
             # print(p, p_new)
             quad_new = self.quad_layer(img_quad, W, img_i.shape)
+            # if(itr == 2):
+            #     print("Omega warp = " ,omega_warp)
+            #     print("Norm of r = ", r.norm())
+            #     print("Delta p = ", delta_p)
+            #     print("dp = ", dp)
+            #     print("p new = ", p_new)                
+            #     print("img quad = ", img_quad)
+            #     print("quad_new = ", quad_new)
+
             # print(quad_new)
             # print("::::::::::::::::")
             # analyse_output(quad_new)

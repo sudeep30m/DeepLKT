@@ -18,7 +18,7 @@ class LKTTracker(SiameseTracker):
         # window = np.outer(hanning, hanning)
         # self.window = np.tile(window.flatten(), self.anchor_num)
         # self.anchors = self.generate_anchor(self.score_size)
-        self.model = model
+        self.model = model.to(model.device)
         # self.model.eval()
         self.params = self.model.params
         self.parameters = self.model.parameters
@@ -64,20 +64,12 @@ class LKTTracker(SiameseTracker):
 
 
     def _bbox_clip(self, cx, cy, width, height, boundary):
-        try:
-            # print(cx.shape)
-            # print(boundary.shape)
-            # print(boundary[:, 1].shape)
-            
-            # print(self._min([cx, boundary[:, 1]]).shape)
-            # print(np.zeros(BATCH_SIZE).shape)
-            # print("^^^^")
-            cx = self._max([np.zeros(BATCH_SIZE), self._min([cx, boundary[:, 1]]) ])
-            cy = self._max([np.zeros(BATCH_SIZE), self._min([cy, boundary[:, 0]]) ])
-        except:
-            from IPython import embed; embed()
-        width = self._max([np.zeros(BATCH_SIZE) + 10, self._min([width, boundary[:, 1]]) ])
-        height = self._max([np.zeros(BATCH_SIZE) + 10, self._min([height, boundary[:, 0]]) ])
+
+        B = cx.shape[0]
+        cx = self._max([np.zeros(B), self._min([cx, boundary[:, 1]]) ])
+        cy = self._max([np.zeros(B), self._min([cy, boundary[:, 0]]) ])
+        width = self._max([np.zeros(B) + 10, self._min([width, boundary[:, 1]]) ])
+        height = self._max([np.zeros(B) + 10, self._min([height, boundary[:, 0]]) ])
 
         # width = max(10, min(width, boundary[1]))
         # height = max(10, min(height, boundary[0]))
@@ -116,7 +108,7 @@ class LKTTracker(SiameseTracker):
         for i, img in enumerate(imgs):
             z_crop.append(self.get_subwindow(img, self.center_pos[i],
                                     EXEMPLAR_SIZE,
-                                    s_z[i], self.channel_average[i]))
+                                    s_z[i], self.channel_average[i], i))
         # b = torch.Tensor(BATCH_SIZE, EXEMPLAR_SIZE, EXEMPLAR_SIZE)
         z_crop = torch.cat(z_crop)        # print(z_crop)
         # temp = img_to_numpy(z_crop[0])
@@ -257,7 +249,7 @@ class LKTTracker(SiameseTracker):
         for i, img in enumerate(imgs):
             x_crop.append(self.get_subwindow(img, self.center_pos[i],
                                     INSTANCE_SIZE,
-                                    np.round(s_x)[i], self.channel_average[i]))
+                                    np.round(s_x)[i], self.channel_average[i], i))
         x_crop = torch.cat(x_crop)
 
         outputs = self.model(x_crop)

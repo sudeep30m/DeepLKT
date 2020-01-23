@@ -15,7 +15,7 @@ import numpy as np
 class BaseModel():
 
 
-    def __init__(self, model, checkpoint_dir, logs_dir):
+    def __init__(self, model, checkpoint_dir, logs_dir, params):
         super().__init__()
 
         # self.nn = PureLKTNet(device, params).to(device)
@@ -28,13 +28,17 @@ class BaseModel():
         self.writer = Logger(logs_dir)
         self.optimizer = SGD(self.nn.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=L2)
         self.loss = nn.SmoothL1Loss()
+        self.params = params
 
 
     def train_model(self, dataset):
-        trainLoader, validLoader = splitData(dataset)
+        trainLoader, validLoader = splitData(dataset, self.params)
+        total = min(self.params.train_examples, len(dataset))
 
-        print("Train dataset size = ", len(trainLoader))
-        print("Valid dataset size = ", len(validLoader))
+        train_total = int(total * (1.0 - self.params.val_split))
+        val_total = total - train_total
+        print("Train dataset size = ", train_total)
+        print("Valid dataset size = ", val_total)
 
         lc = last_checkpoint(self.checkpoint_dir)
         if(lc != -1):
@@ -48,7 +52,7 @@ class BaseModel():
             i = 0
             print("Training for epoch:{}".format(epoch))
             start_time = time.time()
-            print("Total batches = ", len(trainLoader))
+            print("Total training batches = ", len(trainLoader))
             for batch in trainLoader:
                 # print(batch)
                 x, y = get_batch(dataset, batch)
@@ -58,8 +62,8 @@ class BaseModel():
                 bbox = cxy_wh_2_rect(bbox)
                 self.nn.init(x[0], bbox)
                 y_pred = self.nn.train(x[1])
-                # print(y[0])
-                # print(y_pred[0])
+                # print(y)
+                # print(y_pred)
                 loss = self.loss(y_pred, y)
                 print(loss)
                 train_loss += loss
@@ -68,17 +72,18 @@ class BaseModel():
                 print(i)
                 i += 1
 
-            train_loss /= i
-            print("Total training examples = ", i)
+            train_loss /= train_total
             print("Training time for {} epoch = {}".format(epoch, time.time() - start_time))
 
             self.save_checkpoint(epoch, folder=self.checkpoint_dir)
 
             print("Validation for epoch:{}".format(epoch))
-            self.nn = self.nn.eval()
+            self.nn.model = self.nn.model.eval()
             valid_loss = 0.0
             i = 0
             start_time = time.time()
+
+            print("Total validation batches = ", len(validLoader))
 
             with torch.no_grad():
 
@@ -92,8 +97,8 @@ class BaseModel():
                     loss = self.loss(y_pred, y)
                     valid_loss += loss
                     i += 1
-            valid_loss /= i
-            print("Total validation examples = ", i)
+            valid_loss /= val_total
+            print("Total validation batches = ", i)
             print("Validation time for {} epoch = {}".format(epoch, time.time() - start_time))
 
 

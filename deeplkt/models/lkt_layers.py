@@ -30,13 +30,20 @@ class LKTLayers(nn.Module):
         """
 
         B = W.shape[0]
-        if(self.device.type == 'cuda'):
-            C = torch.cuda.FloatTensor([x, y, 1.0]).unsqueeze(0).unsqueeze(0)
-        else:
-            C = torch.FloatTensor([x, y, 1.0]).unsqueeze(0).unsqueeze(0)
-
-        C = C.repeat(B, 1, 1)
+        
+        C = torch.cat([x.unsqueeze(0), y.unsqueeze(0), torch.ones((1, B), device=self.device)])
+        # if(self.device.type == 'cuda'):
+        #     C = torch.cuda.FloatTensor([x, y, 1.0]).unsqueeze(0).unsqueeze(0)
+        # else:
+        #     C = torch.FloatTensor([x, y, 1.0]).unsqueeze(0).unsqueeze(0)
+        # print(C.shape)
+        C = C.t()
+        C = C.view(C.shape[0], 1, C.shape[1])
+        # print("C shape = ", C.shape)
+        # C = C.repeat(B, 1, 1)
         Cn = C.bmm(W)
+        # print("Cn shape = ", Cn.shape)
+
         return Cn[:, 0, 0], Cn[:, 0, 1] 
 
 
@@ -469,16 +476,20 @@ class LKTLayers(nn.Module):
             quad_new -- B x 8
         """
 
-        quad = bb[0]
+        quad = bb
         B = img_i_shape[0]
+        # print("Quad  = ", quad)
+        # print("W = ", W)
 
-        xbl_p, ybl_p = self.warp_tensor(quad[0], quad[1], W)
+        xbl_p, ybl_p = self.warp_tensor(quad[:, 0], quad[:, 1], W)
         # print(xbl_p, ybl_p)
-        x1_p, y1_p = self.warp_tensor(quad[2], quad[3], W)
-        xtr_p, ytr_p = self.warp_tensor(quad[4], quad[5], W)
-        x2_p, y2_p = self.warp_tensor(quad[6], quad[7], W)
+        x1_p, y1_p = self.warp_tensor(quad[:, 2], quad[:, 3], W)
+        xtr_p, ytr_p = self.warp_tensor(quad[:, 4], quad[:, 5], W)
+        x2_p, y2_p = self.warp_tensor(quad[:, 6], quad[:, 7], W)
+        
+        # print("xbl = ", xbl_p)
+        # print("ybl = ",ybl_p)
 
-        # print(img_i_shape)
         H = img_i_shape[2]
         W = img_i_shape[3]
 
@@ -493,4 +504,7 @@ class LKTLayers(nn.Module):
         ytr_p = torch.max(torch.zeros(B, device=self.device), ytr_p)
 
         wc = torch.stack([xbl_p, ybl_p, x1_p, y1_p, xtr_p, ytr_p, x2_p, y2_p])
-        return wc.view(B, 8)
+        # print("Wc shape = ", wc.t().shape)
+
+        quad_new =  wc.t()
+        return quad_new
