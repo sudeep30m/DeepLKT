@@ -81,7 +81,7 @@ class LKTTracker(SiameseTracker):
             imgs(np.ndarray): batch of BGR image
             batch of bbox: (x, y, w, h) bbox
         """
-        # print("Bounding box = ", bbox)
+        print("Bounding box = ", bbox)
         # print("Image size = ", imgs.shape)
         # bbox = np.array(bbox)
         self.center_pos = np.array([bbox[:, 0]+(bbox[:, 2]-1)/2.0,
@@ -108,7 +108,9 @@ class LKTTracker(SiameseTracker):
         for i, img in enumerate(imgs):
             z_crop.append(self.get_subwindow(img, self.center_pos[i],
                                     EXEMPLAR_SIZE,
-                                    s_z[i], self.channel_average[i], i))
+                                    s_z[i], 
+                                    self.channel_average[i], 
+                                    ind=0))
         # b = torch.Tensor(BATCH_SIZE, EXEMPLAR_SIZE, EXEMPLAR_SIZE)
         z_crop = torch.cat(z_crop)        # print(z_crop)
         # temp = img_to_numpy(z_crop[0])
@@ -142,62 +144,32 @@ class LKTTracker(SiameseTracker):
         for i, img in enumerate(imgs):
             x_crop.append(self.get_subwindow(img, self.center_pos[i],
                                     INSTANCE_SIZE,
-                                    np.round(s_x)[i], self.channel_average[i]))
+                                    np.round(s_x)[i], 
+                                    self.channel_average[i],
+                                    ind=1))
         x_crop = torch.cat(x_crop)
-        # z_crop = self.get_subwindow(img, self.center_pos,
-        #                             EXEMPLAR_SIZE,
-        #                             s_z, self.channel_average)
-
-        # self.model.template(z_crop)
-
-        # print(x_crop.shape)
-        # print(z_crop.shape)
-        # from IPython import embed; embed()
         self.cnt += 1
-        # print()
-        # print(x_crop)
-        # print("$$$$$$$$$$$$$$$$$$$")
-        # print(self.model.bbox.shape)
-        # print
-        # temp = img_to_numpy(x_crop[0])
-        # temp2 = img_to_numpy((self.model.bbox)[0])
-        
-        # print(temp.shape)
-        # cv2.imwrite("cropped/" + str(self.cnt) + ".jpeg", temp)
-        # cv2.imwrite("cropped/" + str(self.cnt) + "_1.jpeg", temp2)
 
-        outputs = self.model(x_crop)
+        outputs, sx, sy, img_tcr = self.model(x_crop)
         outputs = tensor_to_numpy(outputs)
-        # print(outputs.shape)
-        # print("Pure LKT output - ", outputs[0])
+        print("output quad = ", outputs)        
 
         bbox = get_min_max_bbox(outputs)
-
-        # print("Min max output - ", bbox)
-        # print(scale_z.shape)
-        # print("{{{{{{{{{{{{{{", bbox)
-        
-        bbox[:, 0] -= int(INSTANCE_SIZE / 2)
-        bbox[:, 1] -= int(INSTANCE_SIZE / 2)
-        bbox[:, 2] -= int(EXEMPLAR_SIZE)
-        bbox[:, 3] -= int(EXEMPLAR_SIZE)
+        print("output bbox = ", bbox)        
+        bbox[:, 0] -= (INSTANCE_SIZE / 2)
+        bbox[:, 1] -= (INSTANCE_SIZE / 2)
+        bbox[:, 2] -= (EXEMPLAR_SIZE)
+        bbox[:, 3] -= (EXEMPLAR_SIZE)
         
         bbox = bbox / scale_z[:, np.newaxis]
-        # print("Bounding box shape = ", bbox.shape)
-        
-
-        # lr = penalty[best_idx] * score[best_idx] * cfg.TRACK.LR
 
         cx = bbox[:, 0] + self.center_pos[:, 0]
         cy = bbox[:, 1] + self.center_pos[:, 1]
         # bbox2 = [x.detach() for x in bbox]
         # # smooth bbox
         # print(self.size, bbox)
-        try:
-            width = self.size[:, 0] * (1 - TRANSITION_LR) + (self.size[:, 0] + bbox[:, 2]) * TRANSITION_LR
-            height = self.size[:, 1] * (1 - TRANSITION_LR) + (self.size[:, 1]+ bbox[:, 3]) * TRANSITION_LR
-        except:
-            from IPython import embed;embed()
+        width = self.size[:, 0] * (1 - TRANSITION_LR) + (self.size[:, 0] + bbox[:, 2]) * TRANSITION_LR
+        height = self.size[:, 1] * (1 - TRANSITION_LR) + (self.size[:, 1]+ bbox[:, 3]) * TRANSITION_LR
         # # print(width, height)
         # print("^^^^^^^^^^^^^^^^^^^^^^^^")
         # # clip boundary
@@ -205,7 +177,7 @@ class LKTTracker(SiameseTracker):
         for img in imgs:
             shapes.append(img.shape[:2])
         shapes = np.array(shapes)
-        print(cx.shape, cy.shape, width.shape, height.shape, shapes)
+        # print(cx.shape, cy.shape, width.shape, height.shape, shapes)
         cx, cy, width, height = self._bbox_clip(cx, cy, width,
                                                 height, shapes)
 
@@ -221,7 +193,7 @@ class LKTTracker(SiameseTracker):
                 height]).transpose()
         # best_score = score[best_idx]
         # from IPython import embed; embed()
-        return bbox
+        return bbox,sx,sy, img_tcr
         # return {
         #         'bbox': bbox,
         #         'best_score': best_score
@@ -249,7 +221,7 @@ class LKTTracker(SiameseTracker):
         for i, img in enumerate(imgs):
             x_crop.append(self.get_subwindow(img, self.center_pos[i],
                                     INSTANCE_SIZE,
-                                    np.round(s_x)[i], self.channel_average[i], i))
+                                    np.round(s_x)[i], self.channel_average[i]))
         x_crop = torch.cat(x_crop)
 
         outputs = self.model(x_crop)

@@ -18,7 +18,7 @@ from os.path import join
 # from model_utils import save_model, update_model, save_results, load_model
 # import matplotlib.pyplot as plt
 # import time
-from deeplkt.utils.util import dotdict
+from deeplkt.utils.util import dotdict, make_dir
 from deeplkt.utils.visualise import readDir, convertVideoToDir
 
 from deeplkt.tracker.lkt_tracker import LKTTracker
@@ -66,34 +66,43 @@ params = dotdict({
 nn = PureLKTNet(device, params)
 tracker = LKTTracker(nn)
 
-video_name = "bomberman.mp4"
-dir_name = "../bomberman"
-outdir_name = "../bomberman_results"
+video_name = "../red_square.mp4"
+dir_name = "../red_square"
+outdir_name = "../red_square_results"
 
-# convertVideoToDir(video_name, dir_name)
+window_name = "ABC"
+make_dir(dir_name)
+make_dir(outdir_name)
+
+convertVideoToDir(video_name, dir_name)
 frames = readDir(dir_name)
 first_frame = True
 cnt = 0
 for frame in frames:
+    frame = np.expand_dims(frame, 0)
     if first_frame:
         file_pth = join(dir_name, "first_frame.npy")
         if not (os.path.isfile(file_pth)):
 
-            try:
-                cv2.namedWindow(video_name, cv2.WND_PROP_FULLSCREEN)
-                init_rect = cv2.selectROI(video_name, frame, False, False)
-                np.save(file_pth, np.array(init_rect))
-            except:
-                exit()
+            # try:
+            cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+            init_rect = cv2.selectROI(window_name, frame[0], False, False)
+            # init_rect = [63, 63, 127, 127]
+            init_rect = np.expand_dims(np.array(init_rect), 0)
+            np.save(file_pth, init_rect)
+            # except:
+            # print("Bakchodi")
+            # exit()
 
         init_rect = np.load(file_pth)
         print(init_rect)
+        
         print(frame.shape)
         # init_rect = 
         tracker.init(frame, init_rect)
         first_frame = False
     else:
-        outputs = tracker.track(frame)
+        outputs, _, _, _ = tracker.track(frame)
         # if 'polygon' in outputs:
         #     polygon = np.array(outputs['polygon']).astype(np.int32)
         #     cv2.polylines(frame, [polygon.reshape((-1, 1, 2))],
@@ -104,13 +113,13 @@ for frame in frames:
         #     frame = cv2.addWeighted(frame, 0.77, mask, 0.23, -1)
         # else:
         print(outputs)
-        bbox = list(map(int, outputs))
-        cv2.rectangle(frame, (bbox[0], bbox[1]),
+        bbox = list(map(int, outputs[0]))
+        cv2.rectangle(frame[0], (bbox[0], bbox[1]),
                         (bbox[0]+bbox[2], bbox[1]+bbox[3]),
                         (0, 255, 0), 1)
         out_pth = join(outdir_name, str(format(cnt, '08d')) + '.jpg')
         print(out_pth)
-        cv2.imwrite(out_pth, frame)
+        cv2.imwrite(out_pth, frame[0])
         cnt += 1
         if(cnt > 200):
             break

@@ -83,6 +83,7 @@ class LKTDataset(Dataset):
         out.release()
 
 
+
     def get_point(self, vid_idx, idx):
         curr_sample = self.get_orig_sample(vid_idx, idx, 1)
         prev_sample = self.get_orig_sample(vid_idx, idx, 0)
@@ -137,8 +138,10 @@ class LKTDataset(Dataset):
         return y[0]        
         
 
-    def get_train_data_point(self, vid_idx, idx):
-        x, y = self.get_data_point(vid_idx, idx)
+    def get_train_data_point(self, ind):
+        vid, idx = self.get_video_id(ind)
+
+        x, y = self.get_data_point(vid, idx)
         # print([i.shape for i in x])
         # print(y.shape)
         # print("Original y = ", y)

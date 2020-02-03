@@ -1,6 +1,8 @@
 import os
 import glob
 from deeplkt.utils.util import make_dir
+from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
+from deeplkt.config import *
 import numpy as np
 import cv2
 import shutil
@@ -10,10 +12,14 @@ def convertVideoToDir(video_path, output_dir):
     cap = cv2.VideoCapture(video_path)
     cnt = 0
     while True:
+        # if(cnt == 0):
+        #     ret, frame = cap.read()
+        # else:
         ret, frame = cap.read()
+
         if ret:
             pth = join(output_dir, str(format(cnt, '08d'))+'.jpg')
-            print(pth)
+            # print(pth)
             cv2.imwrite(pth, frame)
             cnt += 1
         else:
@@ -147,13 +153,192 @@ def outputBboxes(input_images_path, output_images_path, output_file_path):
             I = [x1, y1, xbl, ybl, x2, y2, xtr, ytr] #If free BB
             
             T_PATH = input_images_path +str(format(img_index, '08d'))+'.jpg'
-            print(T_PATH)
+            # print(T_PATH)
             img_t = cv2.imread(T_PATH)
             i_gt = draw_bbox(img_t.copy(), I)
             W_PATH = output_images_path +str(format(img_index, '08d'))+'.jpg'
             cv2.imwrite(W_PATH, i_gt)
             img_index += 1
 
+def visualise_data_point(x, y):
+    img_t = x[0]
+    img_i = x[1]
+    quad_t = x[2]
+    quad_i = y
+    imgt_box = draw_bbox(img_t, quad_t)
+    imgi_box = draw_bbox(img_i, quad_i)
+    vis = np.concatenate((imgt_box, imgi_box), axis=1)
+    return vis
+
+def get_subwindow(im, pos, model_sz, original_sz, avg_chans, ind=-1):
+    """
+    args:
+        im: bgr based image
+        pos: center position
+        model_sz: exemplar size
+        s_z: original size
+        avg_chans: channel average
+    """
+    if isinstance(pos, float):
+        pos = [pos, pos]
+    sz = original_sz
+    im_sz = im.shape
+    c = (original_sz + 1) / 2
+    # context_xmin = round(pos[0] - c) # py2 and py3 round
+    context_xmin = np.floor(pos[0] - c + 0.5)
+    context_xmax = context_xmin + sz - 1
+    # context_ymin = round(pos[1] - c)
+    context_ymin = np.floor(pos[1] - c + 0.5)
+    context_ymax = context_ymin + sz - 1
+    left_pad = int(max(0., -context_xmin))
+    top_pad = int(max(0., -context_ymin))
+    right_pad = int(max(0., context_xmax - im_sz[1] + 1))
+    bottom_pad = int(max(0., context_ymax - im_sz[0] + 1))
+
+    context_xmin = context_xmin + left_pad
+    context_xmax = context_xmax + left_pad
+    context_ymin = context_ymin + top_pad
+    context_ymax = context_ymax + top_pad
+
+    r, c, k = im.shape
+    if any([top_pad, bottom_pad, left_pad, right_pad]):
+        size = (r + top_pad + bottom_pad, c + left_pad + right_pad, k)
+        te_im = np.zeros(size, np.uint8)
+        te_im[top_pad:top_pad + r, left_pad:left_pad + c, :] = im
+        if top_pad:
+            te_im[0:top_pad, left_pad:left_pad + c, :] = avg_chans
+        if bottom_pad:
+            te_im[r + top_pad:, left_pad:left_pad + c, :] = avg_chans
+        if left_pad:
+            te_im[:, 0:left_pad, :] = avg_chans
+        if right_pad:
+            te_im[:, c + left_pad:, :] = avg_chans
+        im_patch = te_im[int(context_ymin):int(context_ymax + 1),
+                            int(context_xmin):int(context_xmax + 1), :]
+    else:
+        im_patch = im[int(context_ymin):int(context_ymax + 1),
+                        int(context_xmin):int(context_xmax + 1), :]
+    # return im_patch
+    if not np.array_equal(model_sz, original_sz):
+        im_patch = cv2.resize(im_patch, (model_sz, model_sz))
+    return im_patch
+
+
+def visualise_transformed_data_point(x, y):
+    img_t = x[0]
+    img_i = x[1]
+    bbox_t = x[2][np.newaxis, :]
+    bbox_t = get_min_max_bbox(bbox_t)
+    bbox_t = cxy_wh_2_rect(bbox_t)
+
+    center_pos = np.array([bbox_t[0, 0]+(bbox_t[0, 2]-1)/2.0,
+                                bbox_t[0, 1]+(bbox_t[0, 3]-1)/2.0])
+    size = np.array([bbox_t[0, 2], bbox_t[0, 3]])
+
+    # calculate z crop size
+    w_z = size[0] + CONTEXT_AMOUNT * np.sum(size)
+    h_z = size[1] + CONTEXT_AMOUNT * np.sum(size)
+    s_z = np.round(np.sqrt(w_z * h_z))
+    scale_z = EXEMPLAR_SIZE / s_z
+    s_x = np.round(s_z * (INSTANCE_SIZE / EXEMPLAR_SIZE))
+
+        # print("Track centre = ", center_pos)
+    channel_average = np.mean(img_t, axis=(0, 1))
+    # get crop
+    # cv2.imwrite('/home/sudeep/Desktop/img1.jpg', img)
+    # print(img.shape)
+    # print("Init centre = ", center_pos)
+    img_t = get_subwindow(img_t, center_pos,
+                                INSTANCE_SIZE,
+                                s_x, channel_average)
+    sz = EXEMPLAR_SIZE
+    sx = INSTANCE_SIZE
+    centre = np.array([int(sx / 2.0), int(sx / 2.0)])
+    xmin = centre[0] - int(sz / 2.0)
+    xmax = centre[0] + int(sz / 2.0)
+    t_quad = np.array([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax]) #inclusive
+    img_i = get_subwindow(img_i, center_pos,
+                                INSTANCE_SIZE,
+                                s_x, channel_average)
+    i_quad = y
+    imgt_box = draw_bbox(img_t, t_quad)
+    imgi_box = draw_bbox(img_i, i_quad)
+    vis = np.concatenate((imgt_box, imgi_box), axis=1)
+    return vis
+
+    # b = torch.Tensor(BATCH_SIZE, EXEMPLAR_SIZE, EXEMPLAR_SIZE)
+    # z_crop = torch.cat(z_crop)        # print(z_crop)
+    # temp = img_to_numpy(z_crop[0])
+    # print(temp.shape)
+    # cv2.imwrite("temp.jpeg", temp)
+
+def _min(arr):
+    return np.min(np.array(arr), 0)
+
+def _max(arr):
+    return np.max(np.array(arr), 0)
+
+
+def _bbox_clip(cx, cy, width, height, boundary):
+
+    cx = _max([0, _min([cx, boundary[1]]) ])
+    cy = _max([0, _min([cy, boundary[0]]) ])
+    width = _max([10, _min([width, boundary[1]]) ])
+    height = _max([10, _min([height, boundary[0]]) ])
+    return cx, cy, width, height
+
+
+def transform_to_gt(x, y):
+    img_t = x[0]
+    img_i = x[1]
+    bbox_t = x[2][np.newaxis, :]
+    bbox_t = get_min_max_bbox(bbox_t)
+    bbox_t = cxy_wh_2_rect(bbox_t)
+    y = get_min_max_bbox(y[np.newaxis, :])[0]
+
+    center_pos = np.array([bbox_t[0, 0]+(bbox_t[0, 2]-1)/2.0,
+                                bbox_t[0, 1]+(bbox_t[0, 3]-1)/2.0])
+    size = np.array([bbox_t[0, 2], bbox_t[0, 3]])
+
+    # calculate z crop size
+    w_z = size[0] + CONTEXT_AMOUNT * np.sum(size)
+    h_z = size[1] + CONTEXT_AMOUNT * np.sum(size)
+    s_z = np.round(np.sqrt(w_z * h_z))
+    scale_z = EXEMPLAR_SIZE / s_z
+    y[0] -= int(INSTANCE_SIZE / 2)
+    y[1] -= int(INSTANCE_SIZE / 2)
+    y[2] -= int(EXEMPLAR_SIZE)
+    y[3] -= int(EXEMPLAR_SIZE)
+    
+    y = y / scale_z
+    # print("Bounding box shape = ", bbox.shape)
+    
+
+    # lr = penalty[best_idx] * score[best_idx] * cfg.TRACK.LR
+
+    cx = y[0] + center_pos[0]
+    cy = y[1] + center_pos[1]
+    # bbox2 = [x.detach() for x in bbox]
+    # # smooth bbox
+    # print(size, bbox)
+    width = size[0] * (1 - TRANSITION_LR) + (size[0] + y[2]) * TRANSITION_LR
+    height = size[1] * (1 - TRANSITION_LR) + (size[1]+ y[3]) * TRANSITION_LR
+    cx, cy, width, height = _bbox_clip(cx, cy, width,
+                                                height, img_i.shape[:2])
+
+    bbox = np.array([cx - width / 2,
+            cy - height / 2,
+            width,
+            height])
+    quad_num = get_region_from_corner(bbox[np.newaxis, :])[0]
+    return quad_num
+
+
+
+
 if __name__ == '__main__':
     pth = '/home/sudeep/Documents/mtp/lkt/data/VOT/VOT_images/VOT_02'
     convert_frames_to_video(pth, '/home/sudeep/Documents/mtp/pysot/demo/basketball.avi', 30)
+
+
+

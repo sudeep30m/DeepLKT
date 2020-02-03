@@ -31,7 +31,8 @@ import math
 def last_checkpoint(pth):
     curr_max = -1
     for file in os.listdir(pth):
-        if(file[0] != '.'):
+        # print(file[0:4])
+        if(file[0] != '.' and file[0:4] != 'best'):
             files = file.split('-')
             curr_max = max(curr_max, int(files[0]))
     return curr_max
@@ -129,8 +130,7 @@ def get_batch(dataset, indices):
     data_y = []
     for ind in indices:
         # print(ind)
-        vid, idx = dataset.get_video_id(ind)
-        x, y = dataset.get_train_data_point(vid, idx)
+        x, y = dataset.get_train_data_point(ind)
         # print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
         # print(y)
         for j in range(m):

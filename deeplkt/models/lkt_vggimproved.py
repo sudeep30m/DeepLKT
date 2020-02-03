@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from deeplkt.models.lkt_layers import LKTLayers
-from deeplkt.models.alexsobel import AlexSobel
+from deeplkt.models.vggimproved import VGGImproved
 from deeplkt.models.base_model import BaseModel
 from deeplkt.utils.model_utils import img_to_numpy
 import numpy as np
@@ -10,45 +10,38 @@ import cv2
 import torch.nn.functional as F
 
 
-class LKTAlexSobelNet(LKTLayers):
+class LKTVGGImproved(LKTLayers):
 
 
     def __init__(self, device, params):
         super().__init__(device)
         self.params = params
-        self.sobel = AlexSobel().to(self.device)
+        self.vgg = VGGImproved(device).to(self.device)
         # self.conv1, self.conv2 = self.sobel_kernels(3)
 
     def template(self, bbox):
         self.bbox = bbox
 
     def sobel_layer(self, x):
-        sx, sy = self.sobel(x)
+        sx, sy, p = self.vgg(x)
         out_x = []
         out_y = []
 
         for i in range(x.shape[0]):
             out_x.append(F.conv2d(x[i:i+1, :, :, :], sx[i, :, :, :, :], \
-                stride=1, padding=1, groups=self.sobel.num_channels))
+                stride=1, padding=1, groups=self.vgg.num_channels))
             out_y.append(F.conv2d(x[i:i+1, :, :, :], sy[i, :, :, :, :], \
-                stride=1, padding=1, groups=self.sobel.num_channels))
+                stride=1, padding=1, groups=self.vgg.num_channels))
         out_x = torch.cat(out_x)
         out_y = torch.cat(out_y)
-        return out_x, out_y
+        return out_x, out_y, p
 
 
     def forward(self, img_i):
-        # img_i = img_i.unsqueeze(0)
         img_tcr = self.bbox
-        # print("Image i = ", img_i)
-        # img_quad = x[2]
         B, C, h, w = img_tcr.shape
 
         p_init = torch.zeros((B, 6), device=self.device)
-        # print(img_i.shape)
-        # print(img_tcr.shape)
-        # print(p_init.shape)
-        # img_tcr, coords = self.crop_function(img_t, img_quad)
         sz = EXEMPLAR_SIZE
         sx = INSTANCE_SIZE
         centre = torch.Tensor([int(sx / 2.0), int(sx / 2.0)], device=self.device)
@@ -57,8 +50,6 @@ class LKTAlexSobelNet(LKTLayers):
         xmax = centre[0] + int(sz / 2.0)
         
         coords = torch.tensor([xmin, xmin, xmax + 1, xmax + 1], device=self.device)  #exclusive
-        # coords = coords.unsqueeze(0)
-        # coords = coords.repeat(BATCH_SIZE, 1)
 
         img_quad = torch.tensor([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax], device=self.device) #inclusive
         img_quad = img_quad.unsqueeze(0)
@@ -66,7 +57,7 @@ class LKTAlexSobelNet(LKTLayers):
 
         quad = img_quad
         omega_t = self.form_omega_t(coords, B)
-        sobel_tx, sobel_ty = self.sobel_layer(img_tcr)
+        sobel_tx, sobel_ty, probs = self.sobel_layer(img_tcr)
         J = self.J_matrix(omega_t, sobel_tx, sobel_ty, self.params.mode)
         J_pinv = self.J_pinv(J, self.params.mode)
         itr = 1
@@ -95,15 +86,5 @@ class LKTAlexSobelNet(LKTLayers):
             itr += 1
             p = p_new
             quad = quad_new
-        # print("--------------------------------------------------------------------------------")
-        # print(itr)
+        return quad, sobel_tx, sobel_ty, img_tcr
 
-        # img_tcr, _ = self.crop_function(img_i, quad_new)
-        # self.bbox = img_tcr
-        # self.p = p_new
-        # print(img_tcr.shape)
-        return quad
-
-# if __name__ == '__main__':
-#     device = torch.device("cuda")
-#     model = LKT
