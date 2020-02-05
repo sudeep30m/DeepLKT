@@ -194,30 +194,11 @@ class LKTLayers(nn.Module):
         B = omega_t.shape[0]
         N = omega_t.shape[1]
         C = sobel_tx.shape[1]
-        H = sobel_tx.shape[2]
-        W = sobel_tx.shape[3]
         # print(H, W, N)
-        assert(N == H * W)
-
-        # print(time.process_time() - start_t)
-
-        # sobel_tx_new = sobel_tx_new.
-        sobel_tx = sobel_tx.contiguous().view(B, C, N)
-        sobel_ty = sobel_ty.contiguous().view(B, C, N)
-        
-        # sobel_tx_new = self.sample_layer(sobel_tx, omega_t)  # (B, N, C)
-        # sobel_ty_new = self.sample_layer(sobel_ty, omega_t)  # (B, N, C)
-        
-        # sobel_tx_new = sobel_tx[:, :, coords[1]:coords[3], coords[0]:coords[2] ]
-        # sobel_tx_new = sobel_tx_new.contiguous().view(B, C, sobel_tx_new.shape[2] * sobel_tx_new.shape[3]).permute(0, 2, 1)
-        # sobel_ty_new = sobel_ty[:, :, coords[1]:coords[3], coords[0]:coords[2] ]
-        # sobel_ty_new = sobel_ty_new.contiguous().view(B, C, sobel_ty_new.shape[2] * sobel_ty_new.shape[3]).permute(0, 2, 1)
-
-        # return
+        sobel_tx = sobel_tx.contiguous().view(B, C, N).permute(0, 2, 1)
+        sobel_ty = sobel_ty.contiguous().view(B, C, N).permute(0, 2, 1)
         sobel_tstk = torch.stack(
             [sobel_tx, sobel_ty], dim=3)  # (B, N, C, 2)
-        # del sobel_tx_new, sobel_ty_new
-        # return
         grad_zeros = torch.zeros((B, N), device=self.device)
         grad_ones = torch.ones((B, N), device=self.device)
 
@@ -241,7 +222,7 @@ class LKTLayers(nn.Module):
                                    torch.zeros((B, N), device=self.device),
                                    torch.zeros((B, N), device=self.device),
                                    torch.zeros((B, N), device=self.device),
-                                   grad_ones,
+                                   torch.ones((B, N), device=self.device),
                                    torch.zeros((B, N), device=self.device)], dim=2)
 
             grad_wy = torch.stack([torch.zeros((B, N), device=self.device),

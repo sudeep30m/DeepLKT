@@ -150,18 +150,11 @@ class BaseModel():
         quads = []
         iou_list = []
         in_video = dataset.get_in_video_path(vid)
-        # print()
-        # print(in_video)
         out_video = dataset.get_out_video_path(vid)
         print("Evaluating dataset for video ", vid)
-        # print(data)
-        # make_dir(out_video + "/kernel_visualisations/")
         data_x, quad_old = dataset.get_data_point(vid, 0)
         data_x[0] = data_x[0][np.newaxis, :, :, :]
         data_x[2] = data_x[2][np.newaxis, :]
-        # print(data_x[2].shape)
-        # print(data_x[0].shape)
-        # print(data_x[0].shape)
         bbox = get_min_max_bbox(data_x[2])
         bbox = cxy_wh_2_rect(bbox)
         sobel_out_dir = join(out_video, "sobel_kernels")
@@ -172,33 +165,10 @@ class BaseModel():
         with torch.no_grad():
             for img_pair in range(1, num_img_pair):
                 data_x, quad_old = dataset.get_data_point(vid, img_pair)
-                # try:
-                # print(quad_old)
-                # print("---------------")
-                # print("")
                 data_x[0] = data_x[0][np.newaxis, :, :, :]
 
                 quad, sx, sy, img_tcr = self.nn.track(data_x[0])
-                # print(sx.shape)
-                sx = img_to_numpy(sx[0])
-                sy = img_to_numpy(sy[0])
-                img_tcr = img_to_numpy(img_tcr[0])
-                cv2.imwrite(join(sobel_out_dir, str(img_pair) +".jpg") , img_tcr)
-            
-                for ii in range(3):
-                    cv2.imwrite(join(sobel_out_dir, str(img_pair) + "_x_"+str(ii)+".jpg") , sx[:, : , ii])
-                    cv2.imwrite(join(sobel_out_dir, str(img_pair) + "_y_"+str(ii)+".jpg") , sy[:, : , ii])
-
-                # print(quad)
                 quad_num = get_region_from_corner(quad)
-                # print(quad_num)
-                # print("************************")
-                # except Exception as e: 
-                #     print(e)
-                #     break
-                # print(img_pair)
-                # quad_num = quad.detach().cpu().numpy()
-                # quad_old_num = quad_old.cpu().numpy()
                 quads.append(quad_num[0])
                 try:
                     iou = calc_iou(quad_num[0], quad_old)
@@ -208,10 +178,8 @@ class BaseModel():
                     break
 
         end_t = time.time()
-        print("Time taken = ", end_t - start_t)
 
         mean_iou = np.sum(iou_list) / num_img_pair
-        print("Mean iou = ", mean_iou)
         write_to_output_file(quads, out_video + "/results.txt")
         outputBboxes(in_video +"/", out_video + "/images/", out_video + "/results.txt")
 

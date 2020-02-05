@@ -39,8 +39,6 @@ class SiameseTracker(BaseTracker):
         """
         # cv2.circle(im, (int(pos[0]), int(pos[1])), \
         #             10, (0, 255, 0), thickness=5)
-        print("Centre == ", pos)
-        print("Original size == ", original_sz)
 
         if isinstance(pos, float):
             pos = [pos, pos]
@@ -53,9 +51,6 @@ class SiameseTracker(BaseTracker):
         # context_ymin = round(pos[1] - c)
         context_ymin = np.floor(pos[1] - c + 0.5)
         context_ymax = context_ymin + sz - 1
-        print(context_xmin, context_xmax)
-        print(context_ymin, context_ymax)
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         left_pad = int(max(0., -context_xmin))
         top_pad = int(max(0., -context_ymin))
         right_pad = int(max(0., context_xmax - im_sz[1] + 1))
@@ -88,10 +83,10 @@ class SiameseTracker(BaseTracker):
 
         if not np.array_equal(model_sz, original_sz):
             im_patch = cv2.resize(im_patch, (model_sz, model_sz))
-        if(ind != -1):
-            pth = 'cropped/' +str(ind)+".jpg"
-            if not os.path.exists(pth):
-                cv2.imwrite(pth, im_patch)
+        # if(ind != -1):
+        #     pth = 'cropped/' +str(ind)+".jpg"
+        #     if not os.path.exists(pth):
+        #         cv2.imwrite(pth, im_patch)
         im_patch = im_patch.transpose(2, 0, 1)
         im_patch = im_patch[np.newaxis, :, :, :]
         im_patch = im_patch.astype(np.float32)

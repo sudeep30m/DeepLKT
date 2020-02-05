@@ -74,7 +74,7 @@ window_name = "ABC"
 make_dir(dir_name)
 make_dir(outdir_name)
 
-convertVideoToDir(video_name, dir_name)
+# convertVideoToDir(video_name, dir_name)
 frames = readDir(dir_name)
 first_frame = True
 cnt = 0
