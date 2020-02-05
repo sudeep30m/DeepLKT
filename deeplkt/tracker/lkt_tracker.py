@@ -81,29 +81,19 @@ class LKTTracker(SiameseTracker):
             imgs(np.ndarray): batch of BGR image
             batch of bbox: (x, y, w, h) bbox
         """
-        print("Bounding box = ", bbox)
-        # print("Image size = ", imgs.shape)
-        # bbox = np.array(bbox)
         self.center_pos = np.array([bbox[:, 0]+(bbox[:, 2]-1)/2.0,
                                     bbox[:, 1]+(bbox[:, 3]-1)/2.0])
         self.center_pos = self.center_pos.transpose()
         self.size = np.array([bbox[:, 2], bbox[:, 3]])
         self.size = self.size.transpose()
 
-        # calculate z crop size
         w_z = self.size[:, 0] + CONTEXT_AMOUNT * np.sum(self.size, 1)
         h_z = self.size[:, 1] + CONTEXT_AMOUNT * np.sum(self.size, 1)
         s_z = np.round(np.sqrt(w_z * h_z))
-        # print("Squared average size of s_z = ", s_z)
-        # calculate channel average
         self.channel_average = []
         for img in imgs:
             self.channel_average.append(np.mean(img, axis=(0, 1)))
         self.channel_average = np.array(self.channel_average)
-        # get crop
-        # cv2.imwrite('/home/sudeep/Desktop/img1.jpg', img)
-        # print(img.shape)
-        # print("Init centre = ", self.center_pos)
         z_crop = []
         for i, img in enumerate(imgs):
             z_crop.append(self.get_subwindow(img, self.center_pos[i],
@@ -111,16 +101,9 @@ class LKTTracker(SiameseTracker):
                                     s_z[i], 
                                     self.channel_average[i], 
                                     ind=0))
-        # b = torch.Tensor(BATCH_SIZE, EXEMPLAR_SIZE, EXEMPLAR_SIZE)
         z_crop = torch.cat(z_crop)        # print(z_crop)
-        # temp = img_to_numpy(z_crop[0])
-        # print(temp.shape)
-        # cv2.imwrite("temp.jpeg", temp)
         self.model.template(z_crop)
         self.cnt = 0
-        # print(z_crop.shape)
-        # cv2.imwrite('/home/sudeep/Desktop/img2.jpg', z_crop.cpu().detach().numpy().transpose(0,2,3,1)[0])
-        # self.model.template(z_crop)
 
     def track(self, imgs):
         """
@@ -129,8 +112,6 @@ class LKTTracker(SiameseTracker):
         return:
             bbox(list):[x, y, width, height]
         """
-        # print(self.size.shape)
-        # print(self.center_pos.shape)
 
         w_z = self.size[:, 0] + CONTEXT_AMOUNT * np.sum(self.size, 1)
         h_z = self.size[:, 1] + CONTEXT_AMOUNT * np.sum(self.size, 1)
@@ -139,7 +120,6 @@ class LKTTracker(SiameseTracker):
         scale_z = EXEMPLAR_SIZE / s_z
         s_x = s_z * (INSTANCE_SIZE / EXEMPLAR_SIZE)
 
-        # print("Track centre = ", self.center_pos)
         x_crop = []
         for i, img in enumerate(imgs):
             x_crop.append(self.get_subwindow(img, self.center_pos[i],
@@ -152,10 +132,8 @@ class LKTTracker(SiameseTracker):
 
         outputs, sx, sy, img_tcr = self.model(x_crop)
         outputs = tensor_to_numpy(outputs)
-        print("output quad = ", outputs)        
 
         bbox = get_min_max_bbox(outputs)
-        print("output bbox = ", bbox)        
         bbox[:, 0] -= (INSTANCE_SIZE / 2)
         bbox[:, 1] -= (INSTANCE_SIZE / 2)
         bbox[:, 2] -= (EXEMPLAR_SIZE)
@@ -165,40 +143,24 @@ class LKTTracker(SiameseTracker):
 
         cx = bbox[:, 0] + self.center_pos[:, 0]
         cy = bbox[:, 1] + self.center_pos[:, 1]
-        # bbox2 = [x.detach() for x in bbox]
-        # # smooth bbox
-        # print(self.size, bbox)
         width = self.size[:, 0] * (1 - TRANSITION_LR) + (self.size[:, 0] + bbox[:, 2]) * TRANSITION_LR
         height = self.size[:, 1] * (1 - TRANSITION_LR) + (self.size[:, 1]+ bbox[:, 3]) * TRANSITION_LR
-        # # print(width, height)
-        # print("^^^^^^^^^^^^^^^^^^^^^^^^")
-        # # clip boundary
         shapes = []
         for img in imgs:
             shapes.append(img.shape[:2])
         shapes = np.array(shapes)
-        # print(cx.shape, cy.shape, width.shape, height.shape, shapes)
         cx, cy, width, height = self._bbox_clip(cx, cy, width,
                                                 height, shapes)
 
-        # # udpate state
-        # print(self.center_pos, self.size)
         self.center_pos = np.array([cx, cy]).transpose()
         self.size = np.array([width, height]).transpose()
-        # print(self.center_pos, self.size)
 
         bbox = np.array([cx - width / 2,
                 cy - height / 2,
                 width,
                 height]).transpose()
-        # best_score = score[best_idx]
-        # from IPython import embed; embed()
         return bbox,sx,sy, img_tcr
-        # return {
-        #         'bbox': bbox,
-        #         'best_score': best_score
-        #        }
-
+        
     def train(self, imgs):
         """
         args:

@@ -128,10 +128,10 @@ class LKTDataset(Dataset):
         # print(y)
         y = y * scale_z
 
-        y[:, 0] += int(INSTANCE_SIZE / 2)
-        y[:, 1] += int(INSTANCE_SIZE / 2)
-        y[:, 2] += int(EXEMPLAR_SIZE)
-        y[:, 3] += int(EXEMPLAR_SIZE)
+        y[:, 0] += (INSTANCE_SIZE / 2)
+        y[:, 1] += (INSTANCE_SIZE / 2)
+        y[:, 2] += (EXEMPLAR_SIZE)
+        y[:, 3] += (EXEMPLAR_SIZE)
         y = get_region_from_center(y)
         # print("$$$$$$$$$$$$")
         # print(y)

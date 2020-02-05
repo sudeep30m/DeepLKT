@@ -136,7 +136,7 @@ def outputBboxes(input_images_path, output_images_path, output_file_path):
     for f in files:
         os.remove(f)
 
-    img_index = 2 
+    img_index = 1
     with open(output_file_path, "r") as filestream:
         
         for line in filestream:
