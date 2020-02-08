@@ -44,12 +44,12 @@ class LKTVGGImproved(LKTLayers):
         p_init = torch.zeros((B, 6), device=self.device)
         sz = EXEMPLAR_SIZE
         sx = INSTANCE_SIZE
-        centre = torch.Tensor([int(sx / 2.0), int(sx / 2.0)], device=self.device)
+        centre = torch.Tensor([(sx / 2.0), (sx / 2.0)], device=self.device)
                 
-        xmin = centre[0] - int(sz / 2.0)
-        xmax = centre[0] + int(sz / 2.0)
+        xmin = centre[0] - (sz / 2.0)
+        xmax = centre[0] + (sz / 2.0)
         
-        coords = torch.tensor([xmin, xmin, xmax + 1, xmax + 1], device=self.device)  #exclusive
+        coords = torch.tensor([xmin, xmin, xmax, xmax], device=self.device)  #exclusive
 
         img_quad = torch.tensor([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax], device=self.device) #inclusive
         img_quad = img_quad.unsqueeze(0)
@@ -58,8 +58,14 @@ class LKTVGGImproved(LKTLayers):
         quad = img_quad
         omega_t = self.form_omega_t(coords, B)
         sobel_tx, sobel_ty, probs = self.sobel_layer(img_tcr)
+        # print(sobel_tx.shape)
         J = self.J_matrix(omega_t, sobel_tx, sobel_ty, self.params.mode)
-        J_pinv = self.J_pinv(J, self.params.mode)
+        # print(J)
+        try:
+            J_pinv = self.J_pinv(J, self.params.mode)
+        except:
+            from IPython import embed;embed()
+
         itr = 1
         p = p_init
         W = self.warp_matrix(p_init, self.params.mode)
@@ -86,5 +92,6 @@ class LKTVGGImproved(LKTLayers):
             itr += 1
             p = p_new
             quad = quad_new
+        # print("iterations = ", itr)
         return quad, sobel_tx, sobel_ty, img_tcr
 

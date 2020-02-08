@@ -54,7 +54,7 @@ params = dotdict({
 # momentum = 0.5
 
 
-net = PureLKTNet(device, params)
+net = LKTVGGImproved(device, params)
 tracker = LKTTracker(net)
 train_params = dotdict({
     'batch_size' : BATCH_SIZE,
@@ -73,7 +73,7 @@ model = BaseModel(tracker, 'checkpoint', 'logs', train_params)
 #     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 # print(count_parameters(nn))
 
-model.eval_model(vot, 0)
+model.train_model(vot)
 
 
 # train_loader = DataLoader(alov, batch_size=1, shuffle=False)

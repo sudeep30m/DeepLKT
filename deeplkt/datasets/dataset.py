@@ -113,9 +113,6 @@ class LKTDataset(Dataset):
         bbox0 = x[2][np.newaxis, :]
         y0 = get_min_max_bbox(bbox0)
 
-        # center_pos = np.array([y0[:, 0]+(y0[:, 2]-1)/2.0,
-        #                             y0[:, 1]+(y0[:, 3]-1)/2.0])
-        # center_pos = center_pos.transpose()
         size = np.array([y0[:, 2], y0[:, 3]])
         size = size.transpose()
         w_z = size[:, 0] + CONTEXT_AMOUNT * np.sum(size, 1)
@@ -125,7 +122,6 @@ class LKTDataset(Dataset):
 
         y = get_min_max_bbox(bbox)
         y -= y0
-        # print(y)
         y = y * scale_z
 
         y[:, 0] += (INSTANCE_SIZE / 2)
@@ -133,8 +129,6 @@ class LKTDataset(Dataset):
         y[:, 2] += (EXEMPLAR_SIZE)
         y[:, 3] += (EXEMPLAR_SIZE)
         y = get_region_from_center(y)
-        # print("$$$$$$$$$$$$")
-        # print(y)
         return y[0]        
         
 

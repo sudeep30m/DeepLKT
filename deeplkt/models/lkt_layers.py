@@ -106,8 +106,8 @@ class LKTLayers(nn.Module):
 
         b = p.shape[0]
         val = (torch.ones((b,), device=self.device) + p[:, 0]) * \
-              (torch.ones((b,), device=self.device) +
-               p[:, 3]) - (p[:, 1] * p[:, 2])
+              (torch.ones((b,), device=self.device) + p[:, 3]) - \
+                (p[:, 1] * p[:, 2])
 
         inverse_output = torch.stack([(-p[:, 0] - p[:, 0] * p[:, 3] + p[:, 1] * p[:, 2]) / val,
                           (-p[:, 1]) / val,
@@ -273,6 +273,14 @@ class LKTLayers(nn.Module):
         # print(J.shape)
         return J
 
+    def matrixInverse(self, H):
+        if(self.device.type == 'cuda'):
+            invH = torch.inverse(H.cpu()).cuda()
+        else:
+            invH = torch.inverse(H)
+        return invH
+
+
     def J_pinv(self, J, mode):
         """ Computes inverse of Jacobian matrix
 
@@ -294,7 +302,8 @@ class LKTLayers(nn.Module):
         # print(Jtj[0].pinverse().shape)
         # print(Jtj)
         # return
-        Jtji = torch.stack([m.inverse() for m in Jtj])
+
+        Jtji = torch.stack([self.matrixInverse(m) for m in Jtj])
 #
         # del Jtj
         # print(Jtji.shape)

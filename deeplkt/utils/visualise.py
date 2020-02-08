@@ -7,6 +7,10 @@ import numpy as np
 import cv2
 import shutil
 from os.path import join, isfile
+import matplotlib.pyplot as plt
+import pandas as pd
+from deeplkt.datasets.dataset import *
+
 
 def convertVideoToDir(video_path, output_dir):
     cap = cv2.VideoCapture(video_path)
@@ -253,9 +257,9 @@ def visualise_transformed_data_point(x, y):
                                 s_x, channel_average)
     sz = EXEMPLAR_SIZE
     sx = INSTANCE_SIZE
-    centre = np.array([int(sx / 2.0), int(sx / 2.0)])
-    xmin = centre[0] - int(sz / 2.0)
-    xmax = centre[0] + int(sz / 2.0)
+    centre = np.array([(sx / 2.0), (sx / 2.0)])
+    xmin = centre[0] - (sz / 2.0)
+    xmax = centre[0] + (sz / 2.0)
     t_quad = np.array([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax]) #inclusive
     img_i = get_subwindow(img_i, center_pos,
                                 INSTANCE_SIZE,
@@ -305,10 +309,10 @@ def transform_to_gt(x, y):
     h_z = size[1] + CONTEXT_AMOUNT * np.sum(size)
     s_z = np.round(np.sqrt(w_z * h_z))
     scale_z = EXEMPLAR_SIZE / s_z
-    y[0] -= int(INSTANCE_SIZE / 2)
-    y[1] -= int(INSTANCE_SIZE / 2)
-    y[2] -= int(EXEMPLAR_SIZE)
-    y[3] -= int(EXEMPLAR_SIZE)
+    y[0] -= (INSTANCE_SIZE / 2)
+    y[1] -= (INSTANCE_SIZE / 2)
+    y[2] -= (EXEMPLAR_SIZE)
+    y[3] -= (EXEMPLAR_SIZE)
     
     y = y / scale_z
     # print("Bounding box shape = ", bbox.shape)
@@ -333,12 +337,72 @@ def transform_to_gt(x, y):
     quad_num = get_region_from_corner(bbox[np.newaxis, :])[0]
     return quad_num
 
+def plot_different_results(results, path):
+    cmap = plt.get_cmap('tab10')
+    for k in results:
+        # print(k)
+        if(k != 'x'):
+            num = len(results[k])
+    # print(num)
+    results['x'] = np.array(range(1, num + 1))
+    colors = [cmap(i) for i in np.linspace(0, 1, len(results))]
+
+    df=pd.DataFrame(results)
+
+    for (i, label) in enumerate(results):
+        # print(label)
+        if(label == 'x'):
+            continue
+        plt.plot( 'x', label, data=df, c = cmap(i))
+
+    plt.legend()
+    plt.xlabel('VOT sequence')
+    plt.ylabel('IOU')
+    plt.title('Results after different training epochs')
+
+    plt.savefig(path)
 
 
 
 if __name__ == '__main__':
-    pth = '/home/sudeep/Documents/mtp/lkt/data/VOT/VOT_images/VOT_02'
-    convert_frames_to_video(pth, '/home/sudeep/Documents/mtp/pysot/demo/basketball.avi', 30)
+    # pth = '/home/sudeep/Documents/mtp/lkt/data/VOT/VOT_images/VOT_02'
+    # convert_frames_to_video(pth, '/home/sudeep/Documents/mtp/pysot/demo/basketball.avi', 30)
 
 
+    vot_root_dir = '../../data/VOT/'
+    alov_root_dir = '../../data/ALOV/'
 
+    use_cuda = torch.cuda.is_available()
+    print(use_cuda)
+    device = torch.device("cuda") if use_cuda else torch.device("cpu")
+
+    vot = VotDataset(os.path.join(vot_root_dir,
+                        'VOT_images/'),
+                    os.path.join(vot_root_dir,
+                        'VOT_ann/'),
+                    os.path.join(vot_root_dir,
+                        'VOT_results/'), 
+                    device)
+
+    alov = AlovDataset(os.path.join(alov_root_dir,
+                        'ALOV_images/'),
+                    os.path.join(alov_root_dir,
+                        'ALOV_ann/'),
+                    os.path.join(alov_root_dir,
+                        'ALOV_results/'), 
+                        device)
+
+    results = '../vot/'
+    for i in range(1000):
+        x, y = vot.get_train_data_point(i)
+        img = visualise_transformed_data_point(x, y)
+        i_quad = transform_to_gt(x, y)
+        img_t = x[0]
+        img_i = x[1]
+        t_quad = x[2]
+        imgt_box = draw_bbox(img_t, t_quad)
+        imgi_box = draw_bbox(img_i, i_quad)
+        vis = np.concatenate((imgt_box, imgi_box), axis=1)
+
+        cv2.imwrite(results + str(i) +".jpeg", img)
+        cv2.imwrite(results + "orig-" + str(i) +".jpeg", vis)

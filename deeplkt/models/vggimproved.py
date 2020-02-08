@@ -12,7 +12,7 @@ from time import time
 
 class VGGImproved(nn.Module):
 
-    def __init__(self, device, num_channels=3, num_classes=1000):
+    def __init__(self, device, num_channels=3, num_classes=200):
         super(VGGImproved, self).__init__()
         self.pad = nn.ReflectionPad2d(1)
         self.num_channels = num_channels
@@ -24,6 +24,14 @@ class VGGImproved(nn.Module):
         #      kernel_size=3, stride=1, bias=False, groups=num_channels)
         # print("Wx shape = ", self.convx.weight.shape)
         self.vgg = models.vgg16(pretrained=True)
+        for i, param in enumerate(self.vgg.parameters()):
+            param.requires_grad = False
+
+        new_classifier = torch.nn.Sequential(*(list(self.vgg.classifier.children())[:-1]))
+        new_classifier.add_module('out_layer', torch.nn.Linear(4096, num_classes))
+        self.vgg.classifier = new_classifier
+        # print(self.vgg)
+
         self.soft = nn.Softmax(dim=1)
         conv_1 = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype='float')
         self.convx = np.tile(np.expand_dims(np.expand_dims(conv_1, 0), 0), \
@@ -40,8 +48,8 @@ class VGGImproved(nn.Module):
         self.convx = nn.Parameter(self.convx, requires_grad=True)
         self.convy = nn.Parameter(self.convy, requires_grad=True)
         
-        self.register_parameter(name='sobelx', param=self.convx)
-        self.register_parameter(name='sobely', param=self.convy)
+        # self.register_parameter(name='sobelx', param=self.convx)
+        # self.register_parameter(name='sobely', param=self.convy)
 
         # print("conv1 shape = ", conv_1.shape)
         # conv_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype='float')
@@ -53,8 +61,6 @@ class VGGImproved(nn.Module):
         # self.convx.weight = nn.Parameter(torch.from_numpy(conv_1).float())
         # self.convy.weight = nn.Parameter(torch.from_numpy(conv_2).float())
 
-        for i, param in enumerate(self.vgg.parameters()):
-            param.requires_grad = False
         self.transform = transforms.Normalize(
                                 mean=[0.485, 0.456, 0.406],
                                 std=[0.229, 0.224, 0.225] )
@@ -80,6 +86,7 @@ class VGGImproved(nn.Module):
         # print(img)
         p = self.vgg(img)
         p = self.soft(p)
+        print(p.shape)
         p = p.unsqueeze(2).unsqueeze(3).unsqueeze(4).double() # (B, num_classes, 1, 1, 1)
         sobelx = []
         sobely = []
@@ -119,9 +126,9 @@ if __name__ == '__main__':
     device = torch.device('cuda')
     model = VGGImproved(device).to(device)
     start_t = time()
-    x = torch.ones(5, 3, 127, 127).to(device)
-    sx, sy = model(x)
+    x = torch.ones(5, 3, 224, 224).to(device)
+    sx, sy, p = model(x)
     end_t = time()
     print(end_t - start_t)
-    print(sx, sy)
+    # print(sx, sy)
     

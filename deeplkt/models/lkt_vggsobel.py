@@ -52,12 +52,12 @@ class LKTVGGSobelNet(LKTLayers):
         # img_tcr, coords = self.crop_function(img_t, img_quad)
         sz = EXEMPLAR_SIZE
         sx = INSTANCE_SIZE
-        centre = torch.Tensor([int(sx / 2.0), int(sx / 2.0)], device=self.device)
+        centre = torch.Tensor([(sx / 2.0), (sx / 2.0)], device=self.device)
                 
-        xmin = centre[0] - int(sz / 2.0)
-        xmax = centre[0] + int(sz / 2.0)
+        xmin = centre[0] - (sz / 2.0)
+        xmax = centre[0] + (sz / 2.0)
         
-        coords = torch.tensor([xmin, xmin, xmax + 1, xmax + 1], device=self.device)  #exclusive
+        coords = torch.tensor([xmin, xmin, xmax, xmax], device=self.device)  #exclusive
         # coords = coords.unsqueeze(0)
         # coords = coords.repeat(BATCH_SIZE, 1)
 

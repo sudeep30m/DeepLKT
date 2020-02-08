@@ -65,10 +65,8 @@ class BaseModel():
                 x, ynp = get_batch(dataset, batch)
                 y = torch.tensor(ynp, device=self.nn.model.device).float()
                 self.optimizer.zero_grad()
-                bbox = get_min_max_bbox(x[2])
-                bbox = cxy_wh_2_rect(bbox)
-                self.nn.init(x[0], bbox)
-                y_pred, _ = self.nn.train(x[1])
+                self.nn.init(x[0], x[2])
+                y_pred, _, _, _ = self.nn.train(x[1])
                 # print(probs.shape)
                 # pmx, pind = probs.max(1)
                 # pmx = pmx[:, 0, 0, 0]
@@ -119,10 +117,8 @@ class BaseModel():
                 for batch in validLoader:
                     x, y = get_batch(dataset, batch)
                     y = torch.tensor(y, device=self.nn.model.device).float()
-                    bbox = get_min_max_bbox(x[2])
-                    bbox = cxy_wh_2_rect(bbox)
-                    self.nn.init(x[0], bbox)
-                    y_pred, _ = self.nn.train(x[1])
+                    self.nn.init(x[0], x[2])
+                    y_pred, _, _, _ = self.nn.train(x[1])
                     loss = self.loss(y_pred, y)
                     valid_loss += loss
                     i += 1
@@ -151,28 +147,29 @@ class BaseModel():
         iou_list = []
         in_video = dataset.get_in_video_path(vid)
         out_video = dataset.get_out_video_path(vid)
+        sobel_out_dir = join(out_video, "sobel_kernels")
+        make_dir(sobel_out_dir)
         print("Evaluating dataset for video ", vid)
         data_x, quad_old = dataset.get_data_point(vid, 0)
         quads.append(quad_old)
-        data_x[0] = data_x[0][np.newaxis, :, :, :]
-        data_x[2] = data_x[2][np.newaxis, :]
-        bbox = get_min_max_bbox(data_x[2])
-        bbox = cxy_wh_2_rect(bbox)
-        sobel_out_dir = join(out_video, "sobel_kernels")
-        make_dir(sobel_out_dir)
-        self.nn.init(data_x[0], bbox)
+        # data_x[0] = data_x[0][np.newaxis, :, :, :]
+        # bbox = data_x[2][np.newaxis, :]
+        # self.nn.init(data_x[0], bbox)
         self.nn.cnt = 0
         start_t = time.time()
         with torch.no_grad():
-            for img_pair in range(1, num_img_pair):
+            for img_pair in range(num_img_pair):
                 data_x, quad_old = dataset.get_data_point(vid, img_pair)
                 data_x[0] = data_x[0][np.newaxis, :, :, :]
+                bbox = data_x[2][np.newaxis, :]
+                data_x[1] = data_x[1][np.newaxis, :, :, :]
 
-                quad, sx, sy, img_tcr = self.nn.track(data_x[0])
-                quad_num = get_region_from_corner(quad)
-                quads.append(quad_num[0])
+                self.nn.init(data_x[0], bbox)
+                
+                quad, sx, sy, img_tcr = self.nn.track(data_x[1])
+                quads.append(quad[0])
                 try:
-                    iou = calc_iou(quad_num[0], quad_old)
+                    iou = calc_iou(quad[0], quad_old)
                     iou_list.append(iou)
                 except Exception as e: 
                     print(e)
@@ -208,25 +205,28 @@ class BaseModel():
 
         torch.save({ 'state_dict' : self.nn.model.state_dict()}, filepath)
     
-    def load_checkpoint(self, epoch, filename='checkpoint.pth'):
+    def load_checkpoint(self, epoch, filename='checkpoint.pth', best=False):
         folder = self.checkpoint_dir
-        filepath = join(folder, str(epoch) + '-' + filename)
-        print(filepath)
+        if(best):
+            filepath = join(folder, 'best-' + str(epoch) + '-' + filename)
+        else:
+            filepath = join(folder, str(epoch) + '-' + filename)
+        # print(filepath)
         if not os.path.exists(filepath):
             raise("No model in path {}".format(filepath))            
         checkpoint = torch.load(filepath)
 
-        own_state = self.nn.model.state_dict()
-        for i, p in enumerate(checkpoint['state_dict'].items()):
-            name, param = p
-            # if name not in own_state:
-            #      continue
-            # if isinstance(param, Parameter):
-            #     # backwards compatibility for serialized parameters
-            #     param = param.data
-            if(i < 4):
-                own_state[name].copy_(param)
-        # self.nn.model.load_state_dict(checkpoint['state_dict'])
+        # own_state = self.nn.model.state_dict()
+        # for i, p in enumerate(checkpoint['state_dict'].items()):
+        #     name, param = p
+        #     # if name not in own_state:
+        #     #      continue
+        #     # if isinstance(param, Parameter):
+        #     #     # backwards compatibility for serialized parameters
+        #     #     param = param.data
+        #     if(i < 4):
+        #         own_state[name].copy_(param)
+        self.nn.model.load_state_dict(checkpoint['state_dict'])
 
     def delete_checkpoint(self, epoch, filename='checkpoint.pth', best=False):
         folder = self.checkpoint_dir

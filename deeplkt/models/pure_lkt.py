@@ -85,8 +85,8 @@ class PureLKTNet(LKTLayers):
             itr += 1
             p = p_new
             quad = quad_new
-        # print("--------------------------------------------------------------------------------")
-        # print(itr)
+        print("--------------------------------------------------------------------------------")
+        print(itr)
         return quad, sobel_tx, sobel_ty, img_tcr
 
 # if __name__ == '__main__':

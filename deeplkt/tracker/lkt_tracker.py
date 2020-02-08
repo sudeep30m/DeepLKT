@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torch
 from deeplkt.config import *
 from deeplkt.utils.model_utils import img_to_numpy, tensor_to_numpy
-from deeplkt.utils.bbox import get_min_max_bbox
+from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
 from deeplkt.tracker.base_tracker import SiameseTracker
 import cv2
 import os
@@ -81,6 +81,9 @@ class LKTTracker(SiameseTracker):
             imgs(np.ndarray): batch of BGR image
             batch of bbox: (x, y, w, h) bbox
         """
+        bbox = get_min_max_bbox(bbox)
+        bbox = cxy_wh_2_rect(bbox)
+
         self.center_pos = np.array([bbox[:, 0]+(bbox[:, 2]-1)/2.0,
                                     bbox[:, 1]+(bbox[:, 3]-1)/2.0])
         self.center_pos = self.center_pos.transpose()
@@ -159,6 +162,8 @@ class LKTTracker(SiameseTracker):
                 cy - height / 2,
                 width,
                 height]).transpose()
+        bbox = get_region_from_corner(bbox)
+        
         return bbox,sx,sy, img_tcr
         
     def train(self, imgs):
