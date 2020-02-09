@@ -230,7 +230,7 @@ class BaseModel():
             filepath = join(folder, 'best-' + str(epoch) + '-' + filename)
         else:
             filepath = join(folder, str(epoch) + '-' + filename)
-        # print(filepath)
+        print(filepath)
         if not os.path.exists(filepath):
             raise("No model in path {}".format(filepath))            
         checkpoint = torch.load(filepath)

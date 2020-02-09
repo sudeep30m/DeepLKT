@@ -26,14 +26,16 @@ class LKTVGGImproved(LKTLayers):
 
     def sobel_layer(self, x):
         sx, sy, p = self.vgg(x)
+        pad = nn.ReflectionPad2d(1)
+
         out_x = []
         out_y = []
 
         for i in range(x.shape[0]):
-            out_x.append(F.conv2d(x[i:i+1, :, :, :], sx[i, :, :, :, :], \
-                stride=1, padding=1, groups=self.vgg.num_channels))
-            out_y.append(F.conv2d(x[i:i+1, :, :, :], sy[i, :, :, :, :], \
-                stride=1, padding=1, groups=self.vgg.num_channels))
+            out_x.append(F.conv2d(pad(x[i:i+1, :, :, :]), sx[i, :, :, :, :], \
+                stride=1,  groups=self.vgg.num_channels))
+            out_y.append(F.conv2d(pad(x[i:i+1, :, :, :]), sy[i, :, :, :, :], \
+                stride=1,  groups=self.vgg.num_channels))
         out_x = torch.cat(out_x)
         out_y = torch.cat(out_y)
         return out_x, out_y, p
