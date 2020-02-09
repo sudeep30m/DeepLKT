@@ -6,7 +6,7 @@ import torch.nn as nn
 from deeplkt.utils.util import make_dir, write_to_output_file
 from deeplkt.utils.visualise import outputBboxes, writeImagesToFolder
 from deeplkt.config import *
-from deeplkt.utils.model_utils import img_to_numpy
+from deeplkt.utils.model_utils import img_to_numpy, tensor_to_numpy
 from deeplkt.utils.model_utils import splitData, calc_iou, last_checkpoint, get_batch
 from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
 import time
@@ -173,11 +173,21 @@ class BaseModel():
 
                 self.nn.init(data_x[0], bbox)
                 
-                quad, sx, sy, img_tcr = self.nn.track(data_x[1])
+                outputs = self.nn.track(data_x[1])
+                if(len(outputs) == 6):
+                    quad, sx, sy, img_tcr, sx_ker, sy_ker = outputs
+                    sx_ker = tensor_to_numpy(sx_ker[0])
+                    sy_ker = tensor_to_numpy(sy_ker[0])
+                    # print(sx_ker.shape)                
+                    np.save(join(sobel_out_dir, str(img_pair) + "-sx.npy"), sx_ker)
+                    np.save(join(sobel_out_dir, str(img_pair) + "-sy.npy"), sy_ker)
+
+                elif(len(outputs) == 4):
+                    quad, sx, sy, img_tcr = outputs
+
                 img_tcr = img_to_numpy(img_tcr[0])
                 sx = img_to_numpy(sx[0])
                 sy = img_to_numpy(sy[0])
-
                 cv2.imwrite(join(imgs_out_dir, str(img_pair) +".jpeg"), img_tcr)
                 for i in range(3):
                     cv2.imwrite(join(sobel_out_dir,\

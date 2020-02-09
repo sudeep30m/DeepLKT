@@ -133,10 +133,11 @@ class LKTTracker(SiameseTracker):
         x_crop = torch.cat(x_crop)
         self.cnt += 1
 
-        outputs, sx, sy, img_tcr = self.model(x_crop)
-        outputs = tensor_to_numpy(outputs)
+        outputs = self.model(x_crop)
 
-        bbox = get_min_max_bbox(outputs)
+        bbox = tensor_to_numpy(outputs[0])
+
+        bbox = get_min_max_bbox(bbox)
         bbox[:, 0] -= (INSTANCE_SIZE / 2)
         bbox[:, 1] -= (INSTANCE_SIZE / 2)
         bbox[:, 2] -= (EXEMPLAR_SIZE)
@@ -164,7 +165,7 @@ class LKTTracker(SiameseTracker):
                 height]).transpose()
         bbox = get_region_from_corner(bbox)
         
-        return bbox,sx,sy, img_tcr
+        return (bbox,) + outputs[1:]
         
     def train(self, imgs):
         """

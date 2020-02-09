@@ -68,6 +68,7 @@ def get_frames(video_name):
             yield frame
 
 
+
 def convert_frames_to_video(pathIn, pathOut, fps):
     """ Converts all images in pathin directory
         to a video in pathOut path.
@@ -164,15 +165,63 @@ def outputBboxes(input_images_path, output_images_path, output_file_path):
             cv2.imwrite(W_PATH, i_gt)
             img_index += 1
 
+def visualise_sobel_kernel(kernel):
+    img = np.zeros((200, 200, 3)) 
+    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    fontScale              = 0.5
+    fontColor              = (255,255,255)
+    lineType               = 2 
+
+    for j in range(3):
+        for i in range(3):
+            cv2.putText(img, str("{0:.2f}".format(kernel[j][i])), 
+                (20 + 60 * j, 40 + 60 * i), 
+                font, 
+                fontScale,
+                fontColor,
+                lineType)
+    img = cv2.resize(img, (100, 100))
+
+    return img
+
 def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
     make_dir(output_dir)
     out = []
     images = len(os.listdir(img_dir))
+
+    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    fontScale              = 0.5
+    fontColor              = (255,255,255)
+    lineType               = 2 
+
+
+
     for i in range(images):
-        poster = np.zeros((860, 450, 3))
+        poster = np.zeros((860, 600, 3))
         img_tcr = cv2.imread(join(img_dir, str(i) +".jpeg"))
         img_tcr = cv2.resize(img_tcr, (100, 100))
         poster[400:500, 40:140, :] = img_tcr
+        cv2.putText(poster, "Pure LKT", 
+            (200, 15), 
+            font, 
+            fontScale,
+            fontColor,
+            lineType)
+        cv2.putText(poster, "Learned LKT", 
+            (310, 15), 
+            font, 
+            fontScale,
+            fontColor,
+            lineType)
+
+        cv2.putText(poster, "Learned sobels", 
+            (460, 15), 
+            font, 
+            fontScale,
+            fontColor,
+            lineType)
+
+
         for j in range(3):
             sx = cv2.imread(join(m1_dir, str(i)+"-x-"+str(j) +".jpeg"))
             sx = cv2.resize(sx, (100, 100))
@@ -181,15 +230,22 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
             sy = cv2.imread(join(m1_dir, str(i)+"-y-"+str(j-3) +".jpeg"))
             sy = cv2.resize(sy, (100, 100))
             poster[ 140*j+ 30:140*j+130, 180:280,:] = sy
+        sx_ker = np.load(join(m2_dir, str(i)+"-sx.npy"))
+        sy_ker = np.load(join(m2_dir, str(i)+"-sy.npy"))
+        # print(sx_ker.shape, sy_ker.shape)
         for j in range(3):
             sx = cv2.imread(join(m2_dir, str(i)+"-x-"+str(j) +".jpeg"))
             sx = cv2.resize(sx, (100, 100))
             poster[ 140*j+ 30:140*j+130, 320:420,:] = sx
+            sx_img = visualise_sobel_kernel(sx_ker[j, 0, :, :])
+            poster[ 140*j+ 30:140*j+130, 460:560,:] = sx_img
+
         for j in range(3, 6):
             sy = cv2.imread(join(m2_dir, str(i)+"-y-"+str(j-3) +".jpeg"))
             sy = cv2.resize(sy, (100, 100))
             poster[ 140*j+ 30:140*j+130, 320:420, :] = sy
-        # poster = np.transpose(poster, (1, 0, 2))
+            sy_img = visualise_sobel_kernel(sy_ker[j-3, 0, :, :])
+            poster[ 140*j+ 30:140*j+130, 460:560,:] = sy_img
         out.append(poster)
     writeImagesToFolder(out, output_dir)
 

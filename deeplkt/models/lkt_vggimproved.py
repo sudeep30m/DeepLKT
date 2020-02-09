@@ -38,7 +38,7 @@ class LKTVGGImproved(LKTLayers):
                 stride=1,  groups=self.vgg.num_channels))
         out_x = torch.cat(out_x)
         out_y = torch.cat(out_y)
-        return out_x, out_y, p
+        return out_x, out_y, sx, sy, p
 
 
     def forward(self, img_i):
@@ -61,7 +61,7 @@ class LKTVGGImproved(LKTLayers):
 
         quad = img_quad
         omega_t = self.form_omega_t(coords, B)
-        sobel_tx, sobel_ty, probs = self.sobel_layer(img_tcr)
+        sobel_tx, sobel_ty, sx, sy, probs = self.sobel_layer(img_tcr)
         # print(sobel_tx.shape)
         J = self.J_matrix(omega_t, sobel_tx, sobel_ty, self.params.mode)
         # print(J)
@@ -97,6 +97,6 @@ class LKTVGGImproved(LKTLayers):
             p = p_new
             quad = quad_new
         # print("iterations = ", itr)
-        return quad, sobel_tx, sobel_ty, img_tcr
+        return quad, sobel_tx, sobel_ty, img_tcr, sx, sy
 
 
