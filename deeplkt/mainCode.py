@@ -48,7 +48,8 @@ params = dotdict({
     'mode' : MODE,
     'max_iterations' : MAX_LK_ITERATIONS,
     'epsilon' : EPSILON,
-    'info': "VGGSobel LKT"
+    'num_classes': NUM_CLASSES,
+    'info': "VGGSobelLKT-100"
 })
 # lr = 0.0005
 # momentum = 0.5
@@ -64,14 +65,13 @@ train_params = dotdict({
     'lr': LR,
     'momentum': MOMENTUM,
     'l2': L2,
-    'random_seed': RANDOM_SEED  
-
+    'random_seed': RANDOM_SEED
 })
 
 model = BaseModel(tracker, 'checkpoint', 'logs', train_params)
-# def count_parameters(model):
-#     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-# print(count_parameters(nn))
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(count_parameters(net))
 
 model.train_model(vot)
 

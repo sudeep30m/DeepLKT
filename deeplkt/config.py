@@ -16,6 +16,7 @@ EXEMPLAR_SIZE = 127
 INSTANCE_SIZE = 255
 VGG_SIZE = 224
 TRANSITION_LR = 1.00
+NUM_CLASSES=200
 
 
 # DEVICE = if torch.cuda.is_available() torch.device("cuda:0") else torch.device("cpu")
