@@ -4,7 +4,7 @@ from deeplkt.utils.logger import Logger
 from torch.optim import SGD
 import torch.nn as nn
 from deeplkt.utils.util import make_dir, write_to_output_file
-from deeplkt.utils.visualise import outputBboxes
+from deeplkt.utils.visualise import outputBboxes, writeImagesToFolder
 from deeplkt.config import *
 from deeplkt.utils.model_utils import img_to_numpy
 from deeplkt.utils.model_utils import splitData, calc_iou, last_checkpoint, get_batch
@@ -145,9 +145,15 @@ class BaseModel():
         num_img_pair = dataset.get_num_images(vid)
         quads = []
         iou_list = []
+        sobel_x = []
+        sobel_y = []
+        imgs = []
         in_video = dataset.get_in_video_path(vid)
         out_video = dataset.get_out_video_path(vid)
-        sobel_out_dir = join(out_video, "sobel_kernels")
+        info = self.nn.model.params.info
+        imgs_out_dir = join(out_video, "img_tcr")        
+        sobel_out_dir = join(out_video, info)
+        make_dir(imgs_out_dir)
         make_dir(sobel_out_dir)
         print("Evaluating dataset for video ", vid)
         data_x, quad_old = dataset.get_data_point(vid, 0)
@@ -157,6 +163,7 @@ class BaseModel():
         # self.nn.init(data_x[0], bbox)
         self.nn.cnt = 0
         start_t = time.time()
+        
         with torch.no_grad():
             for img_pair in range(num_img_pair):
                 data_x, quad_old = dataset.get_data_point(vid, img_pair)
@@ -167,7 +174,17 @@ class BaseModel():
                 self.nn.init(data_x[0], bbox)
                 
                 quad, sx, sy, img_tcr = self.nn.track(data_x[1])
-                quads.append(quad[0])
+                img_tcr = img_to_numpy(img_tcr[0])
+                sx = img_to_numpy(sx[0])
+                sy = img_to_numpy(sy[0])
+
+                cv2.imwrite(join(imgs_out_dir, str(img_pair) +".jpeg"), img_tcr)
+                for i in range(3):
+                    cv2.imwrite(join(sobel_out_dir,\
+                        str(img_pair) + "-x-" +str(i) +".jpeg"), sx[:, :, i])
+                    cv2.imwrite(join(sobel_out_dir,\
+                        str(img_pair) + "-y-" +str(i) +".jpeg"), sy[:, :, i])
+
                 try:
                     iou = calc_iou(quad[0], quad_old)
                     iou_list.append(iou)
@@ -179,7 +196,9 @@ class BaseModel():
 
         mean_iou = np.sum(iou_list) / num_img_pair
         write_to_output_file(quads, out_video + "/results.txt")
+        
         outputBboxes(in_video +"/", out_video + "/images/", out_video + "/results.txt")
+
         print("Total time taken = ", end_t - start_t)
         print("Mean IOU = ", mean_iou)
 

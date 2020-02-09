@@ -164,6 +164,41 @@ def outputBboxes(input_images_path, output_images_path, output_file_path):
             cv2.imwrite(W_PATH, i_gt)
             img_index += 1
 
+def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
+    make_dir(output_dir)
+    out = []
+    images = len(os.listdir(img_dir))
+    for i in range(images):
+        poster = np.zeros((860, 450, 3))
+        img_tcr = cv2.imread(join(img_dir, str(i) +".jpeg"))
+        img_tcr = cv2.resize(img_tcr, (100, 100))
+        poster[400:500, 40:140, :] = img_tcr
+        for j in range(3):
+            sx = cv2.imread(join(m1_dir, str(i)+"-x-"+str(j) +".jpeg"))
+            sx = cv2.resize(sx, (100, 100))
+            poster[140*j+ 30:140*j+130, 180:280, :] = sx
+        for j in range(3, 6):
+            sy = cv2.imread(join(m1_dir, str(i)+"-y-"+str(j-3) +".jpeg"))
+            sy = cv2.resize(sy, (100, 100))
+            poster[ 140*j+ 30:140*j+130, 180:280,:] = sy
+        for j in range(3):
+            sx = cv2.imread(join(m2_dir, str(i)+"-x-"+str(j) +".jpeg"))
+            sx = cv2.resize(sx, (100, 100))
+            poster[ 140*j+ 30:140*j+130, 320:420,:] = sx
+        for j in range(3, 6):
+            sy = cv2.imread(join(m2_dir, str(i)+"-y-"+str(j-3) +".jpeg"))
+            sy = cv2.resize(sy, (100, 100))
+            poster[ 140*j+ 30:140*j+130, 320:420, :] = sy
+        # poster = np.transpose(poster, (1, 0, 2))
+        out.append(poster)
+    writeImagesToFolder(out, output_dir)
+
+def writeImagesToFolder(imgs, folder_dir):
+    make_dir(folder_dir)
+    for i, img in enumerate(imgs):
+        pth = join(folder_dir, str(format(i + 1, '08d'))+'.jpg')
+        cv2.imwrite(pth, img)
+
 def visualise_data_point(x, y):
     img_t = x[0]
     img_i = x[1]
@@ -358,7 +393,7 @@ def plot_different_results(results, path):
     plt.legend()
     plt.xlabel('VOT sequence')
     plt.ylabel('IOU')
-    plt.title('Results after different training epochs')
+    plt.title('Pairwise IOU Pure LKT vs VGG learned sobel LKT')
 
     plt.savefig(path)
 

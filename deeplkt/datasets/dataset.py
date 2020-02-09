@@ -5,9 +5,10 @@ import random
 from shapely.geometry import Polygon
 import torch
 from torch.utils.data import Dataset, DataLoader
-from deeplkt.utils.visualise import draw_bbox
+from deeplkt.utils.visualise import draw_bbox, visualise_sobels
 from deeplkt.utils.bbox import cxy_wh_2_rect, get_min_max_bbox, get_region_from_center
 from deeplkt.config import *
+from os.path import join
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class LKTDataset(Dataset):
@@ -21,6 +22,7 @@ class LKTDataset(Dataset):
         self.index_dict = {}
         self.video_dict = {}
         self.num_samples = 0
+
 
     def get_in_video_path(self, vidx):
         return self.inp_ids[vidx]
@@ -45,6 +47,15 @@ class LKTDataset(Dataset):
         point =  self.get_point(vidx, idx)
         # point = [p.unsqueeze(0) for p in point]
         return point[:-1], point[-1]
+
+    def visualise_sobels(self, idx, m1, m2):
+
+        out_video = self.get_out_video_path(idx)
+        imgs_out_dir = join(out_video, "img_tcr")        
+        m1_out_dir = join(out_video, m1)
+        m2_out_dir = join(out_video, m2)
+        sobel_out_dir = join(out_video, "sobels")
+        visualise_sobels(imgs_out_dir, m1_out_dir, m2_out_dir, sobel_out_dir)
 
 
     def get_orig_sample(self, vid_idx, idx, i=1):

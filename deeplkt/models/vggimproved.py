@@ -12,7 +12,7 @@ from time import time
 
 class VGGImproved(nn.Module):
 
-    def __init__(self, device, num_channels=3, num_classes=200):
+    def __init__(self, device, num_channels=3, num_classes=1000):
         super(VGGImproved, self).__init__()
         self.pad = nn.ReflectionPad2d(1)
         self.num_channels = num_channels
@@ -27,9 +27,9 @@ class VGGImproved(nn.Module):
         for i, param in enumerate(self.vgg.parameters()):
             param.requires_grad = False
 
-        new_classifier = torch.nn.Sequential(*(list(self.vgg.classifier.children())[:-1]))
-        new_classifier.add_module('out_layer', torch.nn.Linear(4096, num_classes))
-        self.vgg.classifier = new_classifier
+        # new_classifier = torch.nn.Sequential(*(list(self.vgg.classifier.children())[:-1]))
+        # new_classifier.add_module('out_layer', torch.nn.Linear(4096, num_classes))
+        # self.vgg.classifier = new_classifier
         # print(self.vgg)
 
         self.soft = nn.Softmax(dim=1)
@@ -86,7 +86,7 @@ class VGGImproved(nn.Module):
         # print(img)
         p = self.vgg(img)
         p = self.soft(p)
-        print(p.shape)
+        # print(p.shape)
         p = p.unsqueeze(2).unsqueeze(3).unsqueeze(4).double() # (B, num_classes, 1, 1, 1)
         sobelx = []
         sobely = []
