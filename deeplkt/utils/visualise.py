@@ -197,25 +197,65 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
 
 
     for i in range(images):
-        poster = np.zeros((860, 600, 3))
+        poster = np.zeros((860, 700, 3))
         img_tcr = cv2.imread(join(img_dir, str(i) +".jpeg"))
+        img_i = cv2.imread(join(img_dir, str(i) +"_i.jpeg"))
+        
+        quad_pure = np.load(join(m1_dir, str(i) +"-quad.npy"))
+        quad_learned = np.load(join(m2_dir, str(i) +"-quad.npy"))
+
+        sz = EXEMPLAR_SIZE
+        sx = INSTANCE_SIZE
+        xmin = sx / 2.0 - sz / 2.0
+        xmax = sx / 2.0 + sz / 2.0
+        quad_iden = np.array([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax])
+        draw_bbox(img_i, quad_pure, color='blue')
+        draw_bbox(img_i, quad_learned, color='green')
+        draw_bbox(img_i, quad_iden, color='red')
+
         img_tcr = cv2.resize(img_tcr, (100, 100))
-        poster[400:500, 40:140, :] = img_tcr
+        img_i = cv2.resize(img_i, (200, 200))
+
+        poster[100:200, 90:190, :] = img_tcr
+        poster[400:600, 40:240, :] = img_i
+        # poster[600:800, 40:240, :] = img_m2
+
+        cv2.putText(poster, "Img tcr", 
+            (110, 220), 
+            font, 
+            fontScale,
+            fontColor,
+            lineType)
+
+        cv2.putText(poster, "Img i", 
+            (75, 620), 
+            font, 
+            fontScale,
+            fontColor,
+            lineType)
+
+        # cv2.putText(poster, "Learned LKT results", 
+        #     (65, 820), 
+        #     font, 
+        #     fontScale,
+        #     fontColor,
+        #     lineType)
+        
         cv2.putText(poster, "Pure LKT", 
-            (200, 15), 
+            (300, 15), 
             font, 
             fontScale,
             fontColor,
             lineType)
         cv2.putText(poster, "Learned LKT", 
-            (310, 15), 
+            (410, 15), 
             font, 
             fontScale,
             fontColor,
             lineType)
 
         cv2.putText(poster, "Learned sobels", 
-            (460, 15), 
+            (560, 15), 
             font, 
             fontScale,
             fontColor,
@@ -225,27 +265,27 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
         for j in range(3):
             sx = cv2.imread(join(m1_dir, str(i)+"-x-"+str(j) +".jpeg"))
             sx = cv2.resize(sx, (100, 100))
-            poster[140*j+ 30:140*j+130, 180:280, :] = sx
+            poster[140*j+ 30:140*j+130, 280:380, :] = sx
         for j in range(3, 6):
             sy = cv2.imread(join(m1_dir, str(i)+"-y-"+str(j-3) +".jpeg"))
             sy = cv2.resize(sy, (100, 100))
-            poster[ 140*j+ 30:140*j+130, 180:280,:] = sy
+            poster[ 140*j+ 30:140*j+130, 280:380,:] = sy
         sx_ker = np.load(join(m2_dir, str(i)+"-sx.npy"))
         sy_ker = np.load(join(m2_dir, str(i)+"-sy.npy"))
         # print(sx_ker.shape, sy_ker.shape)
         for j in range(3):
             sx = cv2.imread(join(m2_dir, str(i)+"-x-"+str(j) +".jpeg"))
             sx = cv2.resize(sx, (100, 100))
-            poster[ 140*j+ 30:140*j+130, 320:420,:] = sx
+            poster[ 140*j+ 30:140*j+130, 420:520,:] = sx
             sx_img = visualise_sobel_kernel(sx_ker[j, 0, :, :])
-            poster[ 140*j+ 30:140*j+130, 460:560,:] = sx_img
+            poster[ 140*j+ 30:140*j+130, 560:660,:] = sx_img
 
         for j in range(3, 6):
             sy = cv2.imread(join(m2_dir, str(i)+"-y-"+str(j-3) +".jpeg"))
             sy = cv2.resize(sy, (100, 100))
-            poster[ 140*j+ 30:140*j+130, 320:420, :] = sy
+            poster[ 140*j+ 30:140*j+130, 420:520, :] = sy
             sy_img = visualise_sobel_kernel(sy_ker[j-3, 0, :, :])
-            poster[ 140*j+ 30:140*j+130, 460:560,:] = sy_img
+            poster[ 140*j+ 30:140*j+130, 560:660,:] = sy_img
         out.append(poster)
     writeImagesToFolder(out, output_dir)
 

@@ -171,24 +171,39 @@ class BaseModel():
                 bbox = data_x[2][np.newaxis, :]
                 data_x[1] = data_x[1][np.newaxis, :, :, :]
 
-                self.nn.init(data_x[0], bbox)
+                if(img_pair == 0):
+                    self.nn.init(data_x[0], bbox)
                 
                 outputs = self.nn.track(data_x[1])
-                if(len(outputs) == 6):
-                    quad, sx, sy, img_tcr, sx_ker, sy_ker = outputs
+                if(len(outputs) == 8):
+                    quad, sx, sy, img_tcr, sx_ker, sy_ker,\
+                        img_i, quad_uns = outputs
                     sx_ker = tensor_to_numpy(sx_ker[0])
                     sy_ker = tensor_to_numpy(sy_ker[0])
                     # print(sx_ker.shape)                
-                    np.save(join(sobel_out_dir, str(img_pair) + "-sx.npy"), sx_ker)
-                    np.save(join(sobel_out_dir, str(img_pair) + "-sy.npy"), sy_ker)
+                    np.save(join(sobel_out_dir, str(img_pair) + "-sx.npy"),\
+                            sx_ker)
+                    np.save(join(sobel_out_dir, str(img_pair) + "-sy.npy"),\
+                            sy_ker)
+ 
+                elif(len(outputs) == 6):
+                    quad, sx, sy, img_tcr, img_i, quad_uns = outputs
 
-                elif(len(outputs) == 4):
-                    quad, sx, sy, img_tcr = outputs
 
                 img_tcr = img_to_numpy(img_tcr[0])
+                img_i = img_to_numpy(img_i[0])
+
+                cv2.imwrite(join(imgs_out_dir,\
+                    str(img_pair) +".jpeg"), img_tcr)
+                cv2.imwrite(join(imgs_out_dir,\
+                    str(img_pair) +"_i.jpeg"), img_i)
+
+                np.save(join(sobel_out_dir, str(img_pair) + "-quad.npy"),\
+                        quad_uns[0, :])
+
                 sx = img_to_numpy(sx[0])
                 sy = img_to_numpy(sy[0])
-                cv2.imwrite(join(imgs_out_dir, str(img_pair) +".jpeg"), img_tcr)
+
                 for i in range(3):
                     cv2.imwrite(join(sobel_out_dir,\
                         str(img_pair) + "-x-" +str(i) +".jpeg"), sx[:, :, i])

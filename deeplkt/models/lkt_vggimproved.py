@@ -26,7 +26,7 @@ class LKTVGGImproved(LKTLayers):
 
     def sobel_layer(self, x):
         sx, sy, p = self.vgg(x)
-        pad = nn.ReflectionPad2d(1)
+        pad = nn.ZeroPad2d(1)
 
         out_x = []
         out_y = []

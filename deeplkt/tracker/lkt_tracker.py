@@ -4,6 +4,7 @@ import torch
 from deeplkt.config import *
 from deeplkt.utils.model_utils import img_to_numpy, tensor_to_numpy
 from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
+from deeplkt.utils.visualise import draw_bbox
 from deeplkt.tracker.base_tracker import SiameseTracker
 import cv2
 import os
@@ -135,9 +136,11 @@ class LKTTracker(SiameseTracker):
 
         outputs = self.model(x_crop)
 
-        bbox = tensor_to_numpy(outputs[0])
-
-        bbox = get_min_max_bbox(bbox)
+        bbox1 = tensor_to_numpy(outputs[0])
+        x_crop = img_to_numpy(x_crop[0])
+        # print(x_crop.shape, bbox.shape)
+        # x_box = draw_bbox(x_crop, bbox[0, :])
+        bbox = get_min_max_bbox(bbox1)
         bbox[:, 0] -= (INSTANCE_SIZE / 2)
         bbox[:, 1] -= (INSTANCE_SIZE / 2)
         bbox[:, 2] -= (EXEMPLAR_SIZE)
@@ -165,7 +168,7 @@ class LKTTracker(SiameseTracker):
                 height]).transpose()
         bbox = get_region_from_corner(bbox)
         
-        return (bbox,) + outputs[1:]
+        return (bbox,) + outputs[1:] + (x_crop, bbox1)
         
     def train(self, imgs):
         """
