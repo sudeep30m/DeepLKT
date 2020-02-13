@@ -59,7 +59,9 @@ class LKTVGGImproved(LKTLayers):
         img_quad = img_quad.unsqueeze(0)
         img_quad = img_quad.repeat(B, 1)
 
+        quads = []
         quad = img_quad
+        quads.append(quad)
         omega_t = self.form_omega_t(coords, B)
         sobel_tx, sobel_ty, sx, sy, probs = self.sobel_layer(img_tcr)
         # print(sobel_tx.shape)
@@ -92,11 +94,15 @@ class LKTVGGImproved(LKTLayers):
             if (itr >= self.params.max_iterations or \
             (quad_new - quad).norm() <= self.params.epsilon):
                 quad = quad_new
+                quads.append(quad)
+
                 break
             itr += 1
             p = p_new
             quad = quad_new
+            quads.append(quad)
+
         # print("iterations = ", itr)
-        return quad, sobel_tx, sobel_ty, img_tcr, sx, sy
+        return quads, sobel_tx, sobel_ty, img_tcr, sx, sy
 
 

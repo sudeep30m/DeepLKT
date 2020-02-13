@@ -157,7 +157,7 @@ class BaseModel():
         make_dir(sobel_out_dir)
         print("Evaluating dataset for video ", vid)
         data_x, quad_old = dataset.get_data_point(vid, 0)
-        quads.append(quad_old)
+        quads.append(data_x[2])
         # data_x[0] = data_x[0][np.newaxis, :, :, :]
         # bbox = data_x[2][np.newaxis, :]
         # self.nn.init(data_x[0], bbox)
@@ -166,17 +166,23 @@ class BaseModel():
         
         with torch.no_grad():
             for img_pair in range(num_img_pair):
+                # print(img_pair)
                 data_x, quad_old = dataset.get_data_point(vid, img_pair)
+                _, quad_train = dataset.get_train_data_point(vid, img_pair)
                 data_x[0] = data_x[0][np.newaxis, :, :, :]
                 bbox = data_x[2][np.newaxis, :]
                 data_x[1] = data_x[1][np.newaxis, :, :, :]
 
+                quad = bbox
                 if(img_pair == 0):
-                    self.nn.init(data_x[0], bbox)
-                
+                    self.nn.init(data_x[0], quad)
+                # try:
                 outputs = self.nn.track(data_x[1])
+                # except:
+                #     print("Error!!!!!!")
+                #     break
                 if(len(outputs) == 8):
-                    quad, sx, sy, img_tcr, sx_ker, sy_ker,\
+                    quad_new, sx, sy, img_tcr, sx_ker, sy_ker,\
                         img_i, quad_uns = outputs
                     sx_ker = tensor_to_numpy(sx_ker[0])
                     sy_ker = tensor_to_numpy(sy_ker[0])
@@ -187,19 +193,38 @@ class BaseModel():
                             sy_ker)
  
                 elif(len(outputs) == 6):
-                    quad, sx, sy, img_tcr, img_i, quad_uns = outputs
+                    quad_new, sx, sy, img_tcr, img_i, quad_uns = outputs
 
-
+                # print(quad_new)
+                # print(quad_uns)
                 img_tcr = img_to_numpy(img_tcr[0])
-                img_i = img_to_numpy(img_i[0])
+                # print(img_i.shape)
+                # img_i = img_to_numpy(img_i[0])
 
                 cv2.imwrite(join(imgs_out_dir,\
-                    str(img_pair) +".jpeg"), img_tcr)
-                cv2.imwrite(join(imgs_out_dir,\
+                    str(img_pair) +"_i.jpeg"), data_x[1][0, :, :, :])
+                np.save(join(imgs_out_dir, str(img_pair) + "-quad-gt.npy"),\
+                        quad_old)
+
+                cv2.imwrite(join(sobel_out_dir,\
+                    str(img_pair) +"_tcr.jpeg"), img_tcr)
+                cv2.imwrite(join(sobel_out_dir,\
                     str(img_pair) +"_i.jpeg"), img_i)
 
+                for j in range(len(quad_new)):
+                    resize_path = join(sobel_out_dir, str(img_pair) + "-resized")
+                    dir_path = join(sobel_out_dir, str(img_pair))
+                    make_dir(dir_path) 
+                    make_dir(resize_path) 
+                    np.save(join(resize_path, str(j) + "-quad-resized.npy"), quad_uns[j][0, :])
+                    np.save(join(dir_path, str(j) + "-quad.npy"), quad_new[j][0, :])
+            
+                np.save(join(sobel_out_dir, str(img_pair) + "-quad-resized.npy"),\
+                        quad_uns[-1][0, :])
                 np.save(join(sobel_out_dir, str(img_pair) + "-quad.npy"),\
-                        quad_uns[0, :])
+                        quad_new[-1][0, :])
+                # np.save(join(sobel_out_dir, str(img_pair) + "-quad-id.npy"),\
+                #         quad[0, :])
 
                 sx = img_to_numpy(sx[0])
                 sy = img_to_numpy(sy[0])
@@ -211,11 +236,14 @@ class BaseModel():
                         str(img_pair) + "-y-" +str(i) +".jpeg"), sy[:, :, i])
 
                 try:
-                    iou = calc_iou(quad[0], quad_old)
+                    iou = calc_iou(quad_new[-1][0], quad_old)
                     iou_list.append(iou)
                 except Exception as e: 
                     print(e)
                     break
+                quads.append(quad_new[-1][0])
+
+                quad = quad_new[-1]
 
         end_t = time.time()
 

@@ -5,7 +5,9 @@ import random
 from shapely.geometry import Polygon
 import torch
 from torch.utils.data import Dataset, DataLoader
-from deeplkt.utils.visualise import draw_bbox, visualise_sobels
+from deeplkt.utils.visualise import draw_bbox, visualise_sobels, \
+    visualise_images, visualise_resized_images, visualise_transitions,\
+    visualise_resized_transitions
 from deeplkt.utils.bbox import cxy_wh_2_rect, get_min_max_bbox, get_region_from_center
 from deeplkt.config import *
 from os.path import join
@@ -48,6 +50,22 @@ class LKTDataset(Dataset):
         # point = [p.unsqueeze(0) for p in point]
         return point[:-1], point[-1]
 
+    def visualise_transitions(self, idx, m1):
+
+        out_video = self.get_out_video_path(idx)
+        imgs_in_dir = join(out_video, "img_tcr")        
+        m1_in_dir = join(out_video, m1)
+        trans_out_dir = join(out_video, "transitions", m1)        
+        visualise_transitions(imgs_in_dir, m1_in_dir, trans_out_dir)
+
+    def visualise_transitions_resized(self, idx, m1):
+
+        out_video = self.get_out_video_path(idx)
+        imgs_in_dir = join(out_video, "img_tcr")        
+        m1_in_dir = join(out_video, m1)
+        trans_out_dir = join(out_video, "transitions-resized", m1)        
+        visualise_resized_transitions(imgs_in_dir, m1_in_dir, trans_out_dir)
+
     def visualise_sobels(self, idx, m1, m2):
 
         out_video = self.get_out_video_path(idx)
@@ -55,8 +73,28 @@ class LKTDataset(Dataset):
         m1_out_dir = join(out_video, m1)
         m2_out_dir = join(out_video, m2)
         sobel_out_dir = join(out_video, "sobels")
+        
         visualise_sobels(imgs_out_dir, m1_out_dir, m2_out_dir, sobel_out_dir)
 
+    def visualise_images(self, idx, m1, m2):
+
+        out_video = self.get_out_video_path(idx)
+        imgs_out_dir = join(out_video, "img_tcr")        
+        m1_out_dir = join(out_video, m1)
+        m2_out_dir = join(out_video, m2)
+        results_out_dir = join(out_video, "results")
+        
+        visualise_images(imgs_out_dir, m1_out_dir, m2_out_dir, results_out_dir)
+
+    def visualise_resized_images(self, idx, m1, m2):
+
+        out_video = self.get_out_video_path(idx)
+        imgs_out_dir = join(out_video, "img_tcr")        
+        m1_out_dir = join(out_video, m1)
+        m2_out_dir = join(out_video, m2)
+        results_out_dir = join(out_video, "resize-results")
+        
+        visualise_resized_images(imgs_out_dir, m1_out_dir, m2_out_dir, results_out_dir)
 
     def get_orig_sample(self, vid_idx, idx, i=1):
         """
@@ -142,9 +180,11 @@ class LKTDataset(Dataset):
         y = get_region_from_center(y)
         return y[0]        
         
-
     def get_train_data_point(self, ind):
         vid, idx = self.get_video_id(ind)
+        return self.get_train_data_point(vid, idx)
+
+    def get_train_data_point(self, vid, idx):
 
         x, y = self.get_data_point(vid, idx)
         # print([i.shape for i in x])

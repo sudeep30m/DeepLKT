@@ -49,8 +49,9 @@ class PureLKTNet(LKTLayers):
 
         img_quad = torch.tensor([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax], device=self.device) #inclusive
         img_quad = img_quad.unsqueeze(0).repeat(B, 1)
-
+        quads = []
         quad = img_quad
+        quads.append(quad)
         omega_t = self.form_omega_t(coords, B)
         N = omega_t.shape[1]
 
@@ -65,6 +66,9 @@ class PureLKTNet(LKTLayers):
         while(self.params.max_iterations > 0):
 
             omega_warp = omega_t.bmm(W)
+            # print(img_i.shape)
+            # print(omega_warp.shape)
+            
             warped_i = self.sample_layer(img_i, omega_warp).permute(0, 2, 1) # (B x C x N)
             warped_i = warped_i.view(img_tcr.shape)
 
@@ -81,13 +85,16 @@ class PureLKTNet(LKTLayers):
             if (itr >= self.params.max_iterations or \
             (quad_new - quad).norm() <= self.params.epsilon):
                 quad = quad_new
+                quads.append(quad)
                 break
             itr += 1
             p = p_new
             quad = quad_new
+            quads.append(quad)
+
         # print("--------------------------------------------------------------------------------")
         # print(itr)
-        return quad, sobel_tx, sobel_ty, img_tcr
+        return quads, sobel_tx, sobel_ty, img_tcr
 
 # if __name__ == '__main__':
 #     device = torch.device("cuda")

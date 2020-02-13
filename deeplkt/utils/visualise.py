@@ -184,10 +184,159 @@ def visualise_sobel_kernel(kernel):
 
     return img
 
+
+def visualise_resized_transitions(img_dir, m_dir, out_dir):
+
+    make_dir(out_dir)
+    sz = EXEMPLAR_SIZE
+    sx = INSTANCE_SIZE
+    xmin = sx / 2.0 - sz / 2.0
+    xmax = sx / 2.0 + sz / 2.0
+    
+    i = 0
+    while(True):
+        if not (os.path.exists(join(m_dir, str(i) +"_tcr.jpeg"))):
+            break
+        img_tcr = cv2.imread(join(m_dir, str(i) +"_tcr.jpeg"))
+        img_i = cv2.imread(join(m_dir, str(i) +"_i.jpeg"))
+
+        dir_path = join(m_dir, str(i) + "-resized")
+        out_path = join(out_dir, str(i))
+        make_dir(out_path)
+        for j, f in enumerate(sorted(os.listdir(dir_path))):
+            img = np.zeros((sx, 2*sx, 3))
+            quad = np.load(join(dir_path, f))
+            img[ 0:sx, sx:2 * sx, :] = draw_bbox(np.array(img_i), quad, color=(0, 255, 0), thk=1)
+            # img[ 0:sx, sx:2 * sx, :] = img_i
+            img[int(xmin) :  int(xmax), int(xmin) :  int(xmax), :] = img_tcr
+            cv2.imwrite(join(out_path, str(j) +".jpeg"), img)
+        i += 1
+
+def visualise_transitions(img_dir, m_dir, out_dir):
+
+    make_dir(out_dir)
+    sz = EXEMPLAR_SIZE
+    sx = INSTANCE_SIZE
+    xmin = sx / 2.0 - sz / 2.0
+    xmax = sx / 2.0 + sz / 2.0
+   
+    i = 0
+    while(True):
+        if not (os.path.exists(join(m_dir, str(i) +"_tcr.jpeg"))):
+            break
+        img_i_copy = cv2.imread(join(img_dir, str(i) +"_i.jpeg"))
+        quad_gt = np.load(join(img_dir, str(i) + "-quad-gt.npy"))
+    
+        dir_path = join(m_dir, str(i))
+        out_path = join(out_dir, str(i))
+        make_dir(out_path)
+        for j, f in enumerate(sorted(os.listdir(dir_path))):
+            quad = np.load(join(dir_path, f))
+            img_i = draw_bbox(np.array(img_i_copy), quad, color=(0, 255, 0), thk=1)
+            img_i = draw_bbox(img_i, quad_gt, color=(0, 0, 255), thk=1)
+            cv2.imwrite(join(out_path, str(j) +".jpeg"), img_i)
+        i += 1
+
+def visualise_resized_images(img_dir, m1_dir, m2_dir, out2_dir):
+    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    fontScale              = 0.5
+    fontColor              = (255,255,255)
+    lineType               = 2 
+
+    # make_dir(output_dir)
+    make_dir(out2_dir)
+
+    # images = int(len(os.listdir(img_dir)) / 3)
+
+    sz = EXEMPLAR_SIZE
+    sx = INSTANCE_SIZE
+    xmin = sx / 2.0 - sz / 2.0
+    xmax = sx / 2.0 + sz / 2.0
+    quad_iden = np.array([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax])
+    
+    i = 0
+    while(True):
+        img = np.zeros((2*sx, 2*sx, 3))
+        if not (os.path.exists(join(m1_dir, str(i) +"_tcr.jpeg"))):
+            break
+        img_tcr_pure = cv2.imread(join(m1_dir, str(i) +"_tcr.jpeg"))
+        img_i_pure = cv2.imread(join(m1_dir, str(i) +"_i.jpeg"))
+        img_tcr_learned = cv2.imread(join(m2_dir, str(i) +"_tcr.jpeg"))
+        img_i_learned = cv2.imread(join(m2_dir, str(i) +"_i.jpeg"))
+        
+        quad_pure = np.load(join(m1_dir, str(i) +"-quad-resized.npy"))
+        quad_learned = np.load(join(m2_dir, str(i) +"-quad-resized.npy"))
+
+        img_i_pure = draw_bbox(img_i_pure, quad_pure, color=(0, 255, 0), thk=2)
+        img_i_pure = draw_bbox(img_i_pure, quad_iden, color=(0, 165, 255), thk=2)
+        # draw_bbox(img_i_pure, quad_gt, color=(0, 0, 255), thk=2)
+
+        img_i_learned = draw_bbox(img_i_learned, quad_learned, color=(0, 255, 0), thk=2)
+        img_i_learned = draw_bbox(img_i_learned, quad_iden, color=(0, 165, 255), thk=2)
+        # draw_bbox(img_i_learned, quad_gt, color=(0, 0, 255), thk=2)
+        img[ 0:sx, sx:2 * sx, :] = img_i_pure
+        img[int(xmin) :  int(xmax), int(xmin) :  int(xmax), :] = img_tcr_pure
+        img[sx:2*sx, sx:2 * sx, :] = img_i_learned
+        img[sx + int(xmin) : sx +  int(xmax), int(xmin) :  int(xmax), :] = img_tcr_learned
+        cv2.putText(img, "Pure LKT", 
+            (90, 220), 
+            font, 
+            fontScale,
+            fontColor,
+            lineType)
+        cv2.putText(img, "Learned LKT", 
+                    (80, 475), 
+                    font, 
+                    fontScale,
+                    fontColor,
+                    lineType)
+
+        # img_i = np.concatenate([img_i_pure, img_i_learned], axis=1)
+        cv2.imwrite(join(out2_dir, str(i) +".jpeg"), img)
+        i += 1
+
+def visualise_images(img_dir, m1_dir, m2_dir, out2_dir):
+    # make_dir(output_dir)
+    make_dir(out2_dir)
+
+    images = int(len(os.listdir(img_dir)) / 3)
+
+
+    i = 0
+    while(True):
+        if not (os.path.exists(join(img_dir, str(i) +"_i.jpeg"))):
+            break
+        img_i_pure = cv2.imread(join(img_dir, str(i) +"_i.jpeg"))
+        img_i_learned = cv2.imread(join(img_dir, str(i) +"_i.jpeg"))
+        
+        quad_pure = np.load(join(m1_dir, str(i) +"-quad.npy"))
+        quad_pure_id = np.load(join(m1_dir, str(i) +"-quad-id.npy"))
+        quad_learned = np.load(join(m2_dir, str(i) +"-quad.npy"))
+        quad_learned_id = np.load(join(m2_dir, str(i) +"-quad-id.npy"))
+        quad_gt = np.load(join(img_dir, str(i) +"-quad-gt.npy"))
+        # sz = EXEMPLAR_SIZE
+        # sx = INSTANCE_SIZE
+        # xmin = sx / 2.0 - sz / 2.0
+        # xmax = sx / 2.0 + sz / 2.0
+        # quad_iden = np.array([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax])
+
+        img_i_pure = draw_bbox(img_i_pure, quad_pure, color=(255, 0, 0), thk=2)
+        # draw_bbox(img_i_pure, quad_pure_id, color=(0, 165, 255), thk=2)
+        img_i_pure = draw_bbox(img_i_pure, quad_gt, color=(0, 0, 255), thk=2)
+
+        img_i_learned = draw_bbox(img_i_learned, quad_learned, color=(255, 0, 0), thk=2)
+        # draw_bbox(img_i_learned, quad_learned_id, color=(0, 165, 255), thk=2)
+        img_i_learned = draw_bbox(img_i_learned, quad_gt, color=(0, 0, 255), thk=2)
+
+        img_i = np.concatenate([img_i_pure, img_i_learned], axis=1)
+        cv2.imwrite(join(out2_dir, str(i) +".jpeg"), img_i)
+        i += 1
+
 def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
     make_dir(output_dir)
+
     out = []
-    images = len(os.listdir(img_dir))
+    images = int(len(os.listdir(img_dir)) / 3)
 
     font                   = cv2.FONT_HERSHEY_SIMPLEX
     fontScale              = 0.5
@@ -196,29 +345,15 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
 
 
 
-    for i in range(images):
+    i = 0
+    while(True):
+        if not (os.path.exists(join(img_dir, str(i) +".jpeg"))):
+            break
         poster = np.zeros((860, 700, 3))
         img_tcr = cv2.imread(join(img_dir, str(i) +".jpeg"))
-        img_i = cv2.imread(join(img_dir, str(i) +"_i.jpeg"))
-        
-        quad_pure = np.load(join(m1_dir, str(i) +"-quad.npy"))
-        quad_learned = np.load(join(m2_dir, str(i) +"-quad.npy"))
-
-        sz = EXEMPLAR_SIZE
-        sx = INSTANCE_SIZE
-        xmin = sx / 2.0 - sz / 2.0
-        xmax = sx / 2.0 + sz / 2.0
-        quad_iden = np.array([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax])
-        draw_bbox(img_i, quad_pure, color='blue')
-        draw_bbox(img_i, quad_learned, color='green')
-        draw_bbox(img_i, quad_iden, color='red')
-
         img_tcr = cv2.resize(img_tcr, (100, 100))
-        img_i = cv2.resize(img_i, (200, 200))
 
         poster[100:200, 90:190, :] = img_tcr
-        poster[400:600, 40:240, :] = img_i
-        # poster[600:800, 40:240, :] = img_m2
 
         cv2.putText(poster, "Img tcr", 
             (110, 220), 
@@ -227,12 +362,12 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
             fontColor,
             lineType)
 
-        cv2.putText(poster, "Img i", 
-            (75, 620), 
-            font, 
-            fontScale,
-            fontColor,
-            lineType)
+        # cv2.putText(poster, "Img i", 
+        #     (75, 620), 
+        #     font, 
+        #     fontScale,
+        #     fontColor,
+        #     lineType)
 
         # cv2.putText(poster, "Learned LKT results", 
         #     (65, 820), 
@@ -287,6 +422,7 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
             sy_img = visualise_sobel_kernel(sy_ker[j-3, 0, :, :])
             poster[ 140*j+ 30:140*j+130, 560:660,:] = sy_img
         out.append(poster)
+        i += 1
     writeImagesToFolder(out, output_dir)
 
 def writeImagesToFolder(imgs, folder_dir):
