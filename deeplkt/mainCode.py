@@ -55,7 +55,7 @@ params = dotdict({
 # momentum = 0.5
 
 
-net = LKTVGGImproved(device, params)
+net = PureLKTNet(device, params)
 tracker = LKTTracker(net)
 train_params = dotdict({
     'batch_size' : BATCH_SIZE,

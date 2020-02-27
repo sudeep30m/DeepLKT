@@ -82,8 +82,7 @@ class PureLKTNet(LKTLayers):
             W = self.warp_matrix(p_new, self.params.mode)
             quad_new = self.quad_layer(img_quad, W, img_i.shape)
 
-            if (itr >= self.params.max_iterations or \
-            (quad_new - quad).norm() <= self.params.epsilon):
+            if (itr >= self.params.max_iterations):
                 quad = quad_new
                 quads.append(quad)
                 break

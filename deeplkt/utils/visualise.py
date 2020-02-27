@@ -310,9 +310,9 @@ def visualise_images(img_dir, m1_dir, m2_dir, out2_dir):
         img_i_learned = cv2.imread(join(img_dir, str(i) +"_i.jpeg"))
         
         quad_pure = np.load(join(m1_dir, str(i) +"-quad.npy"))
-        quad_pure_id = np.load(join(m1_dir, str(i) +"-quad-id.npy"))
+        # quad_pure_id = np.load(join(m1_dir, str(i) +"-quad-id.npy"))
         quad_learned = np.load(join(m2_dir, str(i) +"-quad.npy"))
-        quad_learned_id = np.load(join(m2_dir, str(i) +"-quad-id.npy"))
+        # quad_learned_id = np.load(join(m2_dir, str(i) +"-quad-id.npy"))
         quad_gt = np.load(join(img_dir, str(i) +"-quad-gt.npy"))
         # sz = EXEMPLAR_SIZE
         # sx = INSTANCE_SIZE

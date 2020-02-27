@@ -67,6 +67,7 @@ class BaseModel():
                 self.optimizer.zero_grad()
                 self.nn.init(x[0], x[2])
                 y_pred, _, _, _ = self.nn.train(x[1])
+                y_pred = y_pred[-1]
                 # print(probs.shape)
                 # pmx, pind = probs.max(1)
                 # pmx = pmx[:, 0, 0, 0]
@@ -173,9 +174,11 @@ class BaseModel():
                 bbox = data_x[2][np.newaxis, :]
                 data_x[1] = data_x[1][np.newaxis, :, :, :]
 
+                # if(img_pair == 0):
                 quad = bbox
-                if(img_pair == 0):
-                    self.nn.init(data_x[0], quad)
+                self.nn.init(data_x[0], quad)
+                # else:
+
                 # try:
                 outputs = self.nn.track(data_x[1])
                 # except:

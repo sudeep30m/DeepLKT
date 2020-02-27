@@ -180,12 +180,16 @@ class LKTDataset(Dataset):
         y = get_region_from_center(y)
         return y[0]        
         
-    def get_train_data_point(self, ind):
-        vid, idx = self.get_video_id(ind)
-        return self.get_train_data_point(vid, idx)
+    # def get_train_data_point(self, ind):
+    #     vid, idx = self.get_video_id(ind)
+    #     return self.get_train_data_point(vid, idx)
 
-    def get_train_data_point(self, vid, idx):
-
+    def get_train_data_point(self, *args):
+        if(len(args) == 1):
+            vid, idx = self.get_video_id(args[0])
+        else:
+            vid, idx = args
+    
         x, y = self.get_data_point(vid, idx)
         # print([i.shape for i in x])
         # print(y.shape)
