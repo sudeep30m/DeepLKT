@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from deeplkt.models.lkt_layers import LKTLayers
-from deeplkt.models.vggimproved import VGGImproved
+from deeplkt.models.attention import Attention
 from deeplkt.models.base_model import BaseModel
 from deeplkt.utils.model_utils import img_to_numpy
 import numpy as np
@@ -16,29 +16,39 @@ class LKTVGGImproved(LKTLayers):
     def __init__(self, device, params):
         super().__init__(device)
         self.params = params
-        self.vgg = VGGImproved(device,\
-                                num_classes=params.num_classes).\
-                                to(self.device)
-        # self.conv1, self.conv2 = self.sobel_kernels(3)
+        self.attention = Attention(device).to(self.device)
+        self.conv1, self.conv2 = self.sobel_kernels(3)
 
     def template(self, bbox):
         self.bbox = bbox
 
-    def sobel_layer(self, x):
-        sx, sy, p = self.vgg(x)
-        pad = nn.ZeroPad2d(1)
+    def sobel_kernels(self, C):
+        conv1 = nn.Conv2d(C, C, kernel_size=3, stride=1, bias=False, groups=C)
+        conv2 = nn.Conv2d(C, C, kernel_size=3, stride=1, bias=False, groups=C)
+        conv_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype='float')
+        conv_x = np.tile(np.expand_dims(np.expand_dims(conv_x, 0), 0), (C, 1, 1, 1))
+        conv_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype='float') 
+        conv_y = np.tile(np.expand_dims(np.expand_dims(conv_y, 0), 0), (C, 1, 1, 1))
+        conv1.weight = nn.Parameter(torch.from_numpy(conv_x).to(self.device).float())
+        conv2.weight = nn.Parameter(torch.from_numpy(conv_y).to(self.device).float())
+        return conv1, conv2
 
-        out_x = []
-        out_y = []
 
-        for i in range(x.shape[0]):
-            out_x.append(F.conv2d(pad(x[i:i+1, :, :, :]), sx[i, :, :, :, :], \
-                stride=1,  groups=self.vgg.num_channels))
-            out_y.append(F.conv2d(pad(x[i:i+1, :, :, :]), sy[i, :, :, :, :], \
-                stride=1,  groups=self.vgg.num_channels))
-        out_x = torch.cat(out_x)
-        out_y = torch.cat(out_y)
-        return out_x, out_y, sx, sy, p
+    # def sobel_layer(self, x):
+    #     sx, sy, p = self.vgg(x)
+    #     pad = nn.ZeroPad2d(1)
+
+    #     out_x = []
+    #     out_y = []
+
+    #     for i in range(x.shape[0]):
+    #         out_x.append(F.conv2d(pad(x[i:i+1, :, :, :]), sx[i, :, :, :, :], \
+    #             stride=1,  groups=self.vgg.num_channels))
+    #         out_y.append(F.conv2d(pad(x[i:i+1, :, :, :]), sy[i, :, :, :, :], \
+    #             stride=1,  groups=self.vgg.num_channels))
+    #     out_x = torch.cat(out_x)
+    #     out_y = torch.cat(out_y)
+    #     return out_x, out_y, sx, sy, p
 
 
     def forward(self, img_i):
@@ -61,16 +71,24 @@ class LKTVGGImproved(LKTLayers):
 
         quads = []
         quad = img_quad
-        quads.append(quad)
+        # quads.append(quad)
         omega_t = self.form_omega_t(coords, B)
-        sobel_tx, sobel_ty, sx, sy, probs = self.sobel_layer(img_tcr)
+        # print(omega_t.shape)
+        N = omega_t.shape[1]
+        # sobel_tx, sobel_ty, sx, sy, probs = self.sobel_layer(img_tcr)
+        sobel_tx, sobel_ty = self.sobel_gradients(img_tcr, self.conv1, self.conv2)
+
         # print(sobel_tx.shape)
         J = self.J_matrix(omega_t, sobel_tx, sobel_ty, self.params.mode)
+        # print(J.shape)
+        
+        J = J.view(B, N, C, J.shape[2])
+        P = self.attention(img_tcr)
         # print(J)
-        try:
-            J_pinv = self.J_pinv(J, self.params.mode)
-        except:
-            from IPython import embed;embed()
+        # try:
+        J_pinv = self.J_pinv(J, P, self.params.mode)
+        # except:
+        #     from IPython import embed;embed()
 
         itr = 1
         p = p_init
@@ -91,18 +109,84 @@ class LKTVGGImproved(LKTLayers):
             p_new = self.composition(p, dp)
             W = self.warp_matrix(p_new, self.params.mode)
             quad_new = self.quad_layer(img_quad, W, img_i.shape)
-            if (itr >= self.params.max_iterations or \
-            (quad_new - quad).norm() <= self.params.epsilon):
+            if (itr >= self.params.max_iterations):
                 quad = quad_new
-                quads.append(quad)
+                # quads.append(quad)
 
                 break
             itr += 1
             p = p_new
             quad = quad_new
-            quads.append(quad)
+            # quads.append(quad)
 
         # print("iterations = ", itr)
-        return quads, sobel_tx, sobel_ty, img_tcr, sx, sy
+        return quad_new
+
+    def J_pinv(self, J, P, mode):
+        """ Computes inverse of Jacobian matrix
+
+        Keyword arguments:
+            J -- B x N x C x 6
+            P -- B x N
+
+        Returns:
+            J_inv -- B x 6 x (N * C)
+        """
+
+        B, N, C, Wp = J.shape
+        P = P.view(B, N, 1, 1)
+        Jw = J * P
+        J = J.view(B, N*C, Wp)
+        Jw = Jw.view(B, N*C, Wp)
+
+        # start_t = time.process_time()
+        # print(type(J))
+        Jt = J.permute(0, 2, 1)
+        Jwt = Jw.permute(0, 2, 1)
+
+        Jtj = Jt.bmm(Jw)
+
+        # print(Jtj)
+        # print(Jtj[0].pinverse().shape)
+        # print(Jtj)
+        # return
+        # try:
+        Jtji = torch.stack([self.matrixInverse(m) for m in Jtj])
+        # except:
+        #     from IPython import embed;embed()
+        # del Jtj
+        # print(Jtji.shape)
+        # print(Jt.shape)
+        # start_t = time.process_time()
+        J_pinv = Jtji.bmm(Jwt)
+
+        # print(time.process_time() - start_t)
+        # return
+        # start_t = time.process_time()
+
+        M = J_pinv.shape[2]
+        if(mode == 4):
+
+            J_pinv = torch.stack([J_pinv[:, 0, :],
+                                  torch.zeros((B, M), device=self.device),
+                                  torch.zeros((B, M), device=self.device),
+                                  J_pinv[:, 1, :],
+                                  J_pinv[:, 2, :],
+                                  J_pinv[:, 3, :]], dim=1)
+        elif(mode == 5):
+            J_pinv = torch.stack([J_pinv[:, 0, :],
+                                  J_pinv[:, 1, :],
+                                  torch.zeros((B, M), device=self.device),
+                                  torch.zeros((B, M), device=self.device),
+                                  J_pinv[:, 2, :],
+                                  J_pinv[:, 3, :]], dim=1)
+
+        elif(mode != 0):
+            raise NotImplementedError
+        # print(time.process_time() - start_t)
+        return J_pinv
+        # (K.batch_dot(Jt, J)), Jt)
+
+
 
 

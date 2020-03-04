@@ -1,7 +1,7 @@
 import os
 from os.path import join
 from deeplkt.utils.logger import Logger
-from torch.optim import SGD
+from torch.optim import SGD, Adam
 import torch.nn as nn
 from deeplkt.utils.util import make_dir, write_to_output_file
 from deeplkt.utils.visualise import outputBboxes, writeImagesToFolder
@@ -28,10 +28,11 @@ class BaseModel():
         make_dir(logs_dir)
         self.logs_dir = logs_dir
         self.writer = Logger(logs_dir)
-        self.optimizer = SGD(self.nn.model.parameters(),\
-                                lr=params.lr,\
-                                momentum=params.momentum,\
-                                weight_decay=params.l2)
+        # self.optimizer = SGD(self.nn.model.parameters(),\
+        #                         lr=params.lr,\
+        #                         momentum=params.momentum,\
+        #                         weight_decay=params.l2)
+        self.optimizer = Adam(self.nn.model.parameters())
         self.loss = nn.SmoothL1Loss()
         self.params = params
         self.best = -1
@@ -61,12 +62,16 @@ class BaseModel():
             start_time = time.time()
             print("Total training batches = ", len(trainLoader))
             for batch in trainLoader:
+                # if(i < 30):
+                #     i += 1
+                #     continue
+
                 # print(batch)
                 x, ynp = get_batch(dataset, batch)
                 y = torch.tensor(ynp, device=self.nn.model.device).float()
                 self.optimizer.zero_grad()
                 self.nn.init(x[0], x[2])
-                y_pred, _, _, _ = self.nn.train(x[1])
+                y_pred = self.nn.train(x[1])
                 # print(probs.shape)
                 # pmx, pind = probs.max(1)
                 # pmx = pmx[:, 0, 0, 0]
@@ -118,7 +123,7 @@ class BaseModel():
                     x, y = get_batch(dataset, batch)
                     y = torch.tensor(y, device=self.nn.model.device).float()
                     self.nn.init(x[0], x[2])
-                    y_pred, _, _, _ = self.nn.train(x[1])
+                    y_pred = self.nn.train(x[1])
                     loss = self.loss(y_pred, y)
                     valid_loss += loss
                     i += 1
