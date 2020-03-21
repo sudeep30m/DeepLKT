@@ -1,7 +1,7 @@
 import os
 from os.path import join
 from deeplkt.utils.logger import Logger
-from torch.optim import SGD
+from torch.optim import SGD, Adam
 import torch.nn as nn
 from deeplkt.utils.util import make_dir, write_to_output_file
 from deeplkt.utils.visualise import outputBboxes, writeImagesToFolder
@@ -28,10 +28,9 @@ class BaseModel():
         make_dir(logs_dir)
         self.logs_dir = logs_dir
         self.writer = Logger(logs_dir)
-        self.optimizer = SGD(self.nn.model.parameters(),\
-                                lr=params.lr,\
-                                momentum=params.momentum,\
-                                weight_decay=params.l2)
+        self.optimizer = Adam(self.nn.model.parameters())
+        sgd = SGD(self.nn.model.parameters(), \
+                    lr=LR)
         self.loss = nn.SmoothL1Loss()
         self.params = params
         self.best = -1
@@ -95,7 +94,7 @@ class BaseModel():
                 # print(self.nn.model.vgg.sobelx.grad[0, pind[3], 0, :, :])
 
                 self.optimizer.step()
-                print(i)
+                # print(i)
                 i += 1
 
             train_loss /= i
@@ -120,6 +119,7 @@ class BaseModel():
                     y = torch.tensor(y, device=self.nn.model.device).float()
                     self.nn.init(x[0], x[2])
                     y_pred, _, _, _ = self.nn.train(x[1])
+                    y_pred = y_pred[-1]
                     loss = self.loss(y_pred, y)
                     valid_loss += loss
                     i += 1
@@ -140,7 +140,7 @@ class BaseModel():
                 self.writer.scalar_summary(tag, value, epoch + 1)
 
 
-    def eval_model(self, dataset, vid):
+    def eval_model(self, dataset, vid, pairWise):
         self.nn.model = self.nn.model.eval()
 
         num_img_pair = dataset.get_num_images(vid)
@@ -153,11 +153,11 @@ class BaseModel():
         out_video = dataset.get_out_video_path(vid)
         info = self.nn.model.params.info
         imgs_out_dir = join(out_video, "img_tcr")        
-        sobel_out_dir = join(out_video, info)
+        model_out_dir = join(out_video, info)
         make_dir(imgs_out_dir)
-        make_dir(sobel_out_dir)
+        make_dir(model_out_dir)
         print("Evaluating dataset for video ", vid)
-        data_x, quad_old = dataset.get_data_point(vid, 0)
+        data_x, quad_gt = dataset.get_data_point(vid, 0)
         quads.append(data_x[2])
         # data_x[0] = data_x[0][np.newaxis, :, :, :]
         # bbox = data_x[2][np.newaxis, :]
@@ -168,14 +168,16 @@ class BaseModel():
         with torch.no_grad():
             for img_pair in range(num_img_pair):
                 # print(img_pair)
-                data_x, quad_old = dataset.get_data_point(vid, img_pair)
-                _, quad_train = dataset.get_train_data_point(vid, img_pair)
+                data_x, quad_gt = dataset.get_data_point(vid, img_pair)
+                _, quad_pip_gt = dataset.get_train_data_point(vid, img_pair)
                 data_x[0] = data_x[0][np.newaxis, :, :, :]
                 bbox = data_x[2][np.newaxis, :]
                 data_x[1] = data_x[1][np.newaxis, :, :, :]
 
-                # if(img_pair == 0):
-                quad = bbox
+                if(img_pair == 0 and not pairWise):
+                    quad = bbox
+                elif(pairWise):
+                    quad = bbox
                 self.nn.init(data_x[0], quad)
                 # else:
 
@@ -185,61 +187,66 @@ class BaseModel():
                 #     print("Error!!!!!!")
                 #     break
                 if(len(outputs) == 8):
-                    quad_new, sx, sy, img_tcr, sx_ker, sy_ker,\
-                        img_i, quad_uns = outputs
+                    quad_new, sx, sy, img_pip_tcr, sx_ker, \
+                        sy_ker, img_pip_i, quad_pip = outputs
                     sx_ker = tensor_to_numpy(sx_ker[0])
                     sy_ker = tensor_to_numpy(sy_ker[0])
                     # print(sx_ker.shape)                
-                    np.save(join(sobel_out_dir, str(img_pair) + "-sx.npy"),\
+                    np.save(join(model_out_dir, str(img_pair) + "-sx.npy"),\
                             sx_ker)
-                    np.save(join(sobel_out_dir, str(img_pair) + "-sy.npy"),\
+                    np.save(join(model_out_dir, str(img_pair) + "-sy.npy"),\
                             sy_ker)
  
                 elif(len(outputs) == 6):
-                    quad_new, sx, sy, img_tcr, img_i, quad_uns = outputs
+                    quad_new, sx, sy, img_pip_tcr, img_pip_i,\
+                        quad_pip = outputs
 
-                # print(quad_new)
-                # print(quad_uns)
-                img_tcr = img_to_numpy(img_tcr[0])
-                # print(img_i.shape)
+                img_pip_tcr = img_to_numpy(img_pip_tcr[0])
                 # img_i = img_to_numpy(img_i[0])
 
-                cv2.imwrite(join(imgs_out_dir,\
-                    str(img_pair) +"_i.jpeg"), data_x[1][0, :, :, :])
-                np.save(join(imgs_out_dir, str(img_pair) + "-quad-gt.npy"),\
-                        quad_old)
+                # cv2.imwrite(join(imgs_out_dir,\
+                #     str(img_pair) +"_i.jpeg"), data_x[1][0, :, :, :])
+                # np.save(join(imgs_out_dir, str(img_pair) + "-quad-gt.npy"),\
+                #         quad_gt)
 
-                cv2.imwrite(join(sobel_out_dir,\
-                    str(img_pair) +"_tcr.jpeg"), img_tcr)
-                cv2.imwrite(join(sobel_out_dir,\
-                    str(img_pair) +"_i.jpeg"), img_i)
+                cv2.imwrite(join(model_out_dir,\
+                    str(img_pair) +"_pip_tcr.jpeg"), img_pip_tcr)
+                cv2.imwrite(join(model_out_dir,\
+                    str(img_pair) +"_pip_i.jpeg"), img_pip_i)
+                np.save(join(model_out_dir, str(img_pair) + "_quad_pip.npy"),\
+                    quad_pip[-1][0, :])
+                np.save(join(model_out_dir, str(img_pair) + "_quad_pip_id.npy"),\
+                    quad_pip[0][0, :])
+                np.save(join(model_out_dir, str(img_pair) + "_quad_pip_gt.npy"),\
+                    quad_pip_gt)
+                
+                np.save(join(model_out_dir, str(img_pair) + "_quad.npy"),\
+                    quad_new[-1][0, :])
+                np.save(join(model_out_dir, str(img_pair) + "_quad_id.npy"),\
+                    quad_new[0][0, :])
+                np.save(join(model_out_dir, str(img_pair) + "_quad_gt.npy"),\
+                    quad_gt)
 
-                for j in range(len(quad_new)):
-                    resize_path = join(sobel_out_dir, str(img_pair) + "-resized")
-                    dir_path = join(sobel_out_dir, str(img_pair))
-                    make_dir(dir_path) 
-                    make_dir(resize_path) 
-                    np.save(join(resize_path, str(j) + "-quad-resized.npy"), quad_uns[j][0, :])
-                    np.save(join(dir_path, str(j) + "-quad.npy"), quad_new[j][0, :])
+                # for j in range(len(quad_new)):
+                #     resize_path = join(model_out_dir, str(img_pair) + "-resized")
+                #     dir_path = join(model_out_dir, str(img_pair))
+                #     make_dir(dir_path) 
+                #     make_dir(resize_path) 
+                #     np.save(join(resize_path, str(j) + "-quad-resized.npy"), quad_uns[j][0, :])
+                #     np.save(join(dir_path, str(j) + "-quad.npy"), quad_new[j][0, :])
             
-                np.save(join(sobel_out_dir, str(img_pair) + "-quad-resized.npy"),\
-                        quad_uns[-1][0, :])
-                np.save(join(sobel_out_dir, str(img_pair) + "-quad.npy"),\
-                        quad_new[-1][0, :])
-                # np.save(join(sobel_out_dir, str(img_pair) + "-quad-id.npy"),\
-                #         quad[0, :])
-
                 sx = img_to_numpy(sx[0])
                 sy = img_to_numpy(sy[0])
 
                 for i in range(3):
-                    cv2.imwrite(join(sobel_out_dir,\
-                        str(img_pair) + "-x-" +str(i) +".jpeg"), sx[:, :, i])
-                    cv2.imwrite(join(sobel_out_dir,\
-                        str(img_pair) + "-y-" +str(i) +".jpeg"), sy[:, :, i])
+                    cv2.imwrite(join(model_out_dir,\
+                        str(img_pair) + "-sx-" + str(i) +".jpeg"), sx[:, :, i])
+                    cv2.imwrite(join(model_out_dir,\
+                        str(img_pair) + "-sy-" + str(i) +".jpeg"), sy[:, :, i])
+
 
                 try:
-                    iou = calc_iou(quad_new[-1][0], quad_old)
+                    iou = calc_iou(quad_new[-1][0], quad_gt)
                     iou_list.append(iou)
                 except Exception as e: 
                     print(e)

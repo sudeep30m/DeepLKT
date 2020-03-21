@@ -93,7 +93,9 @@ class PureLKTNet(LKTLayers):
 
         # print("--------------------------------------------------------------------------------")
         # print(itr)
-        return quads, sobel_tx, sobel_ty, img_tcr
+        sx_ker = self.conv1.weight.repeat(B, 1, 1, 1, 1)
+        sy_ker = self.conv2.weight.repeat(B, 1, 1, 1, 1)
+        return quads, sobel_tx, sobel_ty, img_tcr, sx_ker, sy_ker
 
 # if __name__ == '__main__':
 #     device = torch.device("cuda")
