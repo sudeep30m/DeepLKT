@@ -347,7 +347,7 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
     i = 0
     mx = 0.0
     idd = 0
-    best = 98
+    best = 211
     while(True):
         print(i)
         pth = join(m1_dir, str(i) +"_pip_tcr.jpeg")
@@ -364,7 +364,7 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
         quad_id = np.load(join(m1_dir, str(i) +"_quad_pip_id.npy"))
         quad_gt = np.load(join(m1_dir, str(i) +"_quad_pip_gt.npy"))
         iou = calc_iou(quad_gt, quad_learned) - calc_iou(quad_gt, quad_pure)
-        if(iou >= mx):
+        if(iou <= mx):
             print(mx, iou)
             mx = iou
             idd = i

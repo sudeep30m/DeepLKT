@@ -28,6 +28,22 @@ import math
 #     model.path = folder_path
 #     # lines[2] = ro
 
+def best_checkpoint(pth, vid=-1):
+    curr_max = -1
+    for file in os.listdir(pth):
+        # print(file[0:4])
+        if(file[0] != '.'):
+            files = file.split('-')
+            if (vid == -1):
+                if(files[0] == "best"):
+
+                    curr_max = max(curr_max, int(files[1]))
+                    # print(curr_max)
+            elif(files[0] == ('v' + str(vid)) and files[1] == "best"):
+                curr_max = max(curr_max, int(files[2]))
+    return curr_max
+
+
 def last_checkpoint(pth):
     curr_max = -1
     for file in os.listdir(pth):
@@ -102,9 +118,20 @@ def np_data_to_batches(data, batch_size):
     return np.array_split(data, num_batches, 0)
 
 
-def splitData(dataset, params):
-    dataset_size = len(dataset)
-    indices = list(range(dataset_size))
+def splitData(dataset, params, vid=-1):
+    if(vid == -1):
+        dataset_size = len(dataset)
+    else:
+        dataset_size = dataset.get_num_images(vid)
+    if(vid==-1):
+        indices = list(range(dataset_size))
+    else:
+        start = dataset.get_video_index(vid, 0)
+        end = start + dataset.get_num_images(vid)
+        indices = list(range(start, end))
+        # print(indices)
+        # from IPython import embed;embed;
+
     
     train_examples = min(dataset_size, params.train_examples)
     split = int(np.floor( (1.0- params.val_split) * train_examples))

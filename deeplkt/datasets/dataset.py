@@ -24,7 +24,9 @@ class LKTDataset(Dataset):
         self.index_dict = {}
         self.video_dict = {}
         self.num_samples = 0
-
+    
+    def get_video_index(self, vidx, idx):
+        return self.video_dict[(vidx, idx)]
 
     def get_in_video_path(self, vidx):
         return self.inp_ids[vidx]

@@ -29,27 +29,40 @@ class BaseModel():
         self.logs_dir = logs_dir
         self.writer = Logger(logs_dir)
         self.optimizer = Adam(self.nn.model.parameters())
-        sgd = SGD(self.nn.model.parameters(), \
-                    lr=LR)
+        # sgd = SGD(self.nn.model.parameters(), \
+        #             lr=LR)
         self.loss = nn.SmoothL1Loss()
         self.params = params
         self.best = -1
 
 
-    def train_model(self, dataset):
+    def train_model(self, dataset, vid=-1):
+        if(vid != -1):
+            pth = join(self.logs_dir, str(vid))
+            make_dir(pth)
+            self.writer = Logger(pth)
+
         self.nn.model = self.nn.model.train()
 
-        trainLoader, validLoader = splitData(dataset, self.params)
-        total = min(self.params.train_examples, len(dataset))
+        trainLoader, validLoader = splitData(dataset, self.params, vid=vid)
+        if(vid == -1):
+
+            dataset_sz = len(dataset)
+        else:
+            dataset_sz = dataset.get_num_images(vid)
+        total = min(self.params.train_examples, dataset_sz)
+
 
         train_total = int(total * (1.0 - self.params.val_split))
         val_total = total - train_total
         print("Train dataset size = ", train_total)
         print("Valid dataset size = ", val_total)
 
-        lc = last_checkpoint(self.checkpoint_dir)
+        # lc = last_checkpoint(self.checkpoint_dir)
+        lc = -1
+
         if(lc != -1):
-            self.load_checkpoint(lc)
+            self.load_checkpoint(lc, vid=vid)
             print("Checkpoint loaded = {}".format(lc))
         best_val = float("inf")
         for epoch in range(lc + 1, NUM_EPOCHS):
@@ -65,7 +78,7 @@ class BaseModel():
                 y = torch.tensor(ynp, device=self.nn.model.device).float()
                 self.optimizer.zero_grad()
                 self.nn.init(x[0], x[2])
-                y_pred, _, _, _ = self.nn.train(x[1])
+                y_pred, _, _, _,_,_ = self.nn.train(x[1])
                 y_pred = y_pred[-1]
                 # print(probs.shape)
                 # pmx, pind = probs.max(1)
@@ -101,9 +114,9 @@ class BaseModel():
             print("Training time for {} epoch = {}".format(epoch, time.time() - start_time))
             print("Training loss for {} epoch = {}".format(epoch, train_loss))
 
-            self.save_checkpoint(epoch)
-            if(epoch > 15):
-                self.delete_checkpoint(epoch - 15)
+            self.save_checkpoint(epoch, vid=vid)
+            if(epoch >= NUM_CHECKPOINTS):
+                self.delete_checkpoint(epoch - NUM_CHECKPOINTS, vid=vid)
             print("Validation for epoch:{}".format(epoch))
             self.nn.model = self.nn.model.eval()
             valid_loss = 0.0
@@ -118,7 +131,7 @@ class BaseModel():
                     x, y = get_batch(dataset, batch)
                     y = torch.tensor(y, device=self.nn.model.device).float()
                     self.nn.init(x[0], x[2])
-                    y_pred, _, _, _ = self.nn.train(x[1])
+                    y_pred, _, _, _, _, _ = self.nn.train(x[1])
                     y_pred = y_pred[-1]
                     loss = self.loss(y_pred, y)
                     valid_loss += loss
@@ -128,7 +141,7 @@ class BaseModel():
                 best_val = valid_loss
                 print("Epoch = ", epoch)
                 print("Best validation loss = ", best_val)
-                self.save_checkpoint(epoch, best=True)
+                self.save_checkpoint(epoch, best=True, vid=vid)
                 self.best = epoch
             # print("Total validation batches = ", i)
             print("Validation time for {} epoch = {}".format(epoch, time.time() - start_time))
@@ -189,9 +202,9 @@ class BaseModel():
                 if(len(outputs) == 8):
                     quad_new, sx, sy, img_pip_tcr, sx_ker, \
                         sy_ker, img_pip_i, quad_pip = outputs
+                    
                     sx_ker = tensor_to_numpy(sx_ker[0])
-                    sy_ker = tensor_to_numpy(sy_ker[0])
-                    # print(sx_ker.shape)                
+                    sy_ker = tensor_to_numpy(sy_ker[0])  
                     np.save(join(model_out_dir, str(img_pair) + "-sx.npy"),\
                             sx_ker)
                     np.save(join(model_out_dir, str(img_pair) + "-sy.npy"),\
@@ -273,52 +286,52 @@ class BaseModel():
 
 
 
-    def save_checkpoint(self, epoch, filename='checkpoint.pth', best=False):
+    def save_checkpoint(self, epoch, filename='checkpoint.pth', best=False, vid=-1):
         folder = self.checkpoint_dir
         if not os.path.exists(folder):
             os.mkdir(folder)
-
+        filestr = str(epoch) + '-' + filename
         if(best):
             if (self.best != -1):
-                self.delete_checkpoint(self.best, best=True)
-            filepath = join(folder, 'best-' + str(epoch) + '-' + filename)
-        else:
-            filepath = join(folder, str(epoch) + '-' + filename)
+                self.delete_checkpoint(self.best, best=True, vid=vid)
+            filestr = 'best-' + filestr
+        if(vid != -1):
+            filestr = 'v' + str(vid) + '-' + filestr
+        # else:
+        filepath = join(folder, filestr)
 
-        torch.save({ 'state_dict' : self.nn.model.state_dict()}, filepath)
+        torch.save({ 'state_dict' : self.nn.model.state_dict(),\
+                    'optimizer' : self.optimizer.state_dict()}, filepath)
     
-    def load_checkpoint(self, epoch, filename='checkpoint.pth', best=False):
+    def load_checkpoint(self, epoch, filename='checkpoint.pth', best=False, vid=-1):
         folder = self.checkpoint_dir
+
+        filestr = str(epoch) + '-' + filename
         if(best):
-            filepath = join(folder, 'best-' + str(epoch) + '-' + filename)
-        else:
-            filepath = join(folder, str(epoch) + '-' + filename)
-        print(filepath)
+            filestr = 'best-' + filestr
+        if(vid != -1):
+            filestr = 'v' + str(vid) + '-' + filestr
+        filepath = join(folder, filestr)
+        # print(filepath)
+
         if not os.path.exists(filepath):
             raise("No model in path {}".format(filepath))            
         checkpoint = torch.load(filepath)
 
-        # own_state = self.nn.model.state_dict()
-        # for i, p in enumerate(checkpoint['state_dict'].items()):
-        #     name, param = p
-        #     # if name not in own_state:
-        #     #      continue
-        #     # if isinstance(param, Parameter):
-        #     #     # backwards compatibility for serialized parameters
-        #     #     param = param.data
-        #     if(i < 4):
-        #         own_state[name].copy_(param)
         self.nn.model.load_state_dict(checkpoint['state_dict'])
+        if 'optimizer' in checkpoint:
+           self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-    def delete_checkpoint(self, epoch, filename='checkpoint.pth', best=False):
+    def delete_checkpoint(self, epoch, filename='checkpoint.pth', best=False, vid=-1):
         folder = self.checkpoint_dir
         if not os.path.exists(folder):
             os.mkdir(folder)
-
+        filestr = str(epoch) + '-' + filename
         if(best):
-            filepath = join(folder, 'best-' + str(epoch) + '-' + filename)
-        else:
-            filepath = join(folder, str(epoch) + '-' + filename)
+            filestr = 'best-' + filestr
+        if(vid != -1):
+            filestr = 'v' + str(vid) + '-' + filestr
+        filepath = join(folder, filestr)
         if(os.path.exists(filepath)):
             os.remove(filepath)
         # torch.save({ 'state_dict' : self.nn.model.state_dict()}, filepath)

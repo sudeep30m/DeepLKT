@@ -52,7 +52,7 @@ vot = VotDataset(os.path.join(vot_root_dir,
                        'VOT_results/'), 
                  device)
 
-results = pkl_load('results-pair.pkl')
+results = pkl_load('e3-results-seq.pkl')
 pure_lkt = results['pure_lkt']
 learned_lkt = results['learned_lkt']
 
@@ -68,9 +68,10 @@ for i in range(25):
     total += vot.get_num_images(i)
 pure_lkt_iou /= total
 vgg_lkt_iou /= total
+# print("E1 pure")
 print(pure_lkt_iou, vgg_lkt_iou)
 # p
-plot_bar_graph(results, "e2-results-pair.png")
+# plot_bar_graph(results, "e2-results-pair.png")
 
 
 
