@@ -65,7 +65,8 @@ class BaseModel():
                 y = torch.tensor(ynp, device=self.nn.model.device).float()
                 self.optimizer.zero_grad()
                 self.nn.init(x[0], x[2])
-                y_pred, _, _, _ = self.nn.train(x[1])
+                # print(len(self.nn.train(x[1])))
+                y_pred = self.nn.train(x[1])[0]
                 y_pred = y_pred[-1]
                 # print(probs.shape)
                 # pmx, pind = probs.max(1)
@@ -118,7 +119,7 @@ class BaseModel():
                     x, y = get_batch(dataset, batch)
                     y = torch.tensor(y, device=self.nn.model.device).float()
                     self.nn.init(x[0], x[2])
-                    y_pred, _, _, _ = self.nn.train(x[1])
+                    y_pred = self.nn.train(x[1])[0]
                     y_pred = y_pred[-1]
                     loss = self.loss(y_pred, y)
                     valid_loss += loss

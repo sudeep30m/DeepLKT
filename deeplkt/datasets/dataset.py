@@ -160,6 +160,7 @@ class LKTDataset(Dataset):
     def get_modified_target(self, x, bbox):
         bbox = bbox[np.newaxis, :]
         bbox0 = x[2][np.newaxis, :]
+        y = get_min_max_bbox(bbox)
         y0 = get_min_max_bbox(bbox0)
 
         size = np.array([y0[:, 2], y0[:, 3]])
@@ -167,16 +168,15 @@ class LKTDataset(Dataset):
         w_z = size[:, 0] + CONTEXT_AMOUNT * np.sum(size, 1)
         h_z = size[:, 1] + CONTEXT_AMOUNT * np.sum(size, 1)
         s_z = np.sqrt(w_z * h_z)
-        scale_z = EXEMPLAR_SIZE / s_z
+        scale_z = NEW_EXEMPLAR_SIZE / s_z
 
-        y = get_min_max_bbox(bbox)
         y -= y0
         y = y * scale_z
 
-        y[:, 0] += (INSTANCE_SIZE / 2)
-        y[:, 1] += (INSTANCE_SIZE / 2)
-        y[:, 2] += (EXEMPLAR_SIZE)
-        y[:, 3] += (EXEMPLAR_SIZE)
+        y[:, 0] += (NEW_INSTANCE_SIZE / 2)
+        y[:, 1] += (NEW_INSTANCE_SIZE / 2)
+        y[:, 2] += (NEW_EXEMPLAR_SIZE)
+        y[:, 3] += (NEW_EXEMPLAR_SIZE)
         y = get_region_from_center(y)
         return y[0]        
         

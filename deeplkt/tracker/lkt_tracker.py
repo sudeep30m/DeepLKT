@@ -136,6 +136,7 @@ class LKTTracker(SiameseTracker):
         self.cnt += 1
 
         outputs = self.model(x_crop)
+        scale_z = self.model.exemplar_size / s_z
         x_crop = img_to_numpy(x_crop[0])
         bbox_lkt = []
         bbox_rescaled = []
@@ -145,10 +146,10 @@ class LKTTracker(SiameseTracker):
             # print(x_crop.shape, bbox.shape)
             # x_box = draw_bbox(x_crop, bbox[0, :])
             bbox = get_min_max_bbox(bbox1)
-            bbox[:, 0] -= (INSTANCE_SIZE / 2)
-            bbox[:, 1] -= (INSTANCE_SIZE / 2)
-            bbox[:, 2] -= (EXEMPLAR_SIZE)
-            bbox[:, 3] -= (EXEMPLAR_SIZE)
+            bbox[:, 0] -= (self.model.instance_size / 2)
+            bbox[:, 1] -= (self.model.instance_size / 2)
+            bbox[:, 2] -= (self.model.exemplar_size)
+            bbox[:, 3] -= (self.model.exemplar_size)
             
             bbox = bbox / scale_z[:, np.newaxis]
 

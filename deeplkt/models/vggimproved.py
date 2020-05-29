@@ -18,13 +18,11 @@ class VGGImproved(nn.Module):
         self.num_channels = num_channels
         self.num_classes = num_classes
         self.device = device
-        self.vgg = models.vgg16(pretrained=True)
+        self.vgg = models.vgg16(pretrained=True, device=self.device).features
         for i, param in enumerate(self.vgg.parameters()):
-            param.requires_grad = False
+            if(i < 22):
+                param.requires_grad = False
 
-        new_classifier = torch.nn.Sequential(*(list(self.vgg.classifier.children())[:-1]))
-        new_classifier.add_module('out_layer', torch.nn.Linear(4096, num_classes))
-        self.vgg.classifier = new_classifier
         # print(self.vgg)
 
         self.soft = nn.Softmax(dim=1)
@@ -40,8 +38,8 @@ class VGGImproved(nn.Module):
 
         self.convx = torch.tensor(self.convx, device=self.device)
         self.convy = torch.tensor(self.convy, device=self.device)
-        self.convx = nn.Parameter(self.convx, requires_grad=True)
-        self.convy = nn.Parameter(self.convy, requires_grad=True)
+        self.convx = nn.Parameter(self.convx, requires_grad=False)
+        self.convy = nn.Parameter(self.convy, requires_grad=False)
         
         self.transform = transforms.Normalize(
                                 mean=[0.485, 0.456, 0.406],
