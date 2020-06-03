@@ -85,8 +85,8 @@ class LKTTracker(SiameseTracker):
         bbox = get_min_max_bbox(bbox)
         bbox = cxy_wh_2_rect(bbox)
 
-        self.center_pos = np.array([bbox[:, 0]+(bbox[:, 2]-1)/2.0,
-                                    bbox[:, 1]+(bbox[:, 3]-1)/2.0])
+        self.center_pos = np.array([bbox[:, 0]+(bbox[:, 2])/2.0,
+                                    bbox[:, 1]+(bbox[:, 3])/2.0])
         self.center_pos = self.center_pos.transpose()
         self.size = np.array([bbox[:, 2], bbox[:, 3]])
         self.size = self.size.transpose()
@@ -136,46 +136,44 @@ class LKTTracker(SiameseTracker):
         self.cnt += 1
 
         outputs = self.model(x_crop)
-        scale_z = self.model.exemplar_size / s_z
+        # print(len(outputs))
+        scale_z = NEW_EXEMPLAR_SIZE / s_z
         x_crop = img_to_numpy(x_crop[0])
         bbox_lkt = []
         bbox_rescaled = []
-        for i in range(len(outputs[0])):
-            bbox1 = tensor_to_numpy(outputs[0][i])
-            bbox_lkt.append(bbox1)
-            # print(x_crop.shape, bbox.shape)
-            # x_box = draw_bbox(x_crop, bbox[0, :])
-            bbox = get_min_max_bbox(bbox1)
-            bbox[:, 0] -= (self.model.instance_size / 2)
-            bbox[:, 1] -= (self.model.instance_size / 2)
-            bbox[:, 2] -= (self.model.exemplar_size)
-            bbox[:, 3] -= (self.model.exemplar_size)
-            
-            bbox = bbox / scale_z[:, np.newaxis]
+        # for i in range(len(outputs[0])):
+        bbox1 = tensor_to_numpy(outputs[0])
+        bbox = get_min_max_bbox(bbox1)
+        bbox[:, 0] -= (NEW_INSTANCE_SIZE / 2)
+        bbox[:, 1] -= (NEW_INSTANCE_SIZE / 2)
+        bbox[:, 2] -= (NEW_EXEMPLAR_SIZE)
+        bbox[:, 3] -= (NEW_EXEMPLAR_SIZE)
+        
+        bbox = bbox / scale_z[:, np.newaxis]
 
-            cx = bbox[:, 0] + self.center_pos[:, 0]
-            cy = bbox[:, 1] + self.center_pos[:, 1]
-            width = self.size[:, 0] * (1 - TRANSITION_LR) + (self.size[:, 0] + bbox[:, 2]) * TRANSITION_LR
-            height = self.size[:, 1] * (1 - TRANSITION_LR) + (self.size[:, 1]+ bbox[:, 3]) * TRANSITION_LR
-            shapes = []
-            for img in imgs:
-                shapes.append(img.shape[:2])
-            shapes = np.array(shapes)
-            cx, cy, width, height = self._bbox_clip(cx, cy, width,
-                                                    height, shapes)
+        cx = bbox[:, 0] + self.center_pos[:, 0]
+        cy = bbox[:, 1] + self.center_pos[:, 1]
+        width = self.size[:, 0] * (1 - TRANSITION_LR) + (self.size[:, 0] + bbox[:, 2]) * TRANSITION_LR
+        height = self.size[:, 1] * (1 - TRANSITION_LR) + (self.size[:, 1]+ bbox[:, 3]) * TRANSITION_LR
+        shapes = []
+        for img in imgs:
+            shapes.append(img.shape[:2])
+        shapes = np.array(shapes)
+        cx, cy, width, height = self._bbox_clip(cx, cy, width,
+                                                height, shapes)
 
 
-            bbox = np.array([cx - width / 2,
-                    cy - height / 2,
-                    width,
-                    height]).transpose()
-            bbox = get_region_from_corner(bbox)
-            bbox_rescaled.append(bbox) 
-            if(i == len(outputs[0]) - 1):
-                self.center_pos = np.array([cx, cy]).transpose()
-                self.size = np.array([width, height]).transpose()
+        bbox = np.array([cx - width / 2,
+                cy - height / 2,
+                width,
+                height]).transpose()
+        bbox = get_region_from_corner(bbox)
+        # bbox_rescaled.append(bbox) 
+        # if(i == len(outputs[0]) - 1):
+        self.center_pos = np.array([cx, cy]).transpose()
+        self.size = np.array([width, height]).transpose()
 
-        return (bbox_rescaled,) + outputs[1:] + (x_crop, bbox_lkt)
+        return (bbox,) + outputs[1:] + (x_crop, bbox1, scale_z)
         
     def train(self, imgs):
         """
@@ -203,7 +201,8 @@ class LKTTracker(SiameseTracker):
         x_crop = torch.cat(x_crop)
 
         outputs = self.model(x_crop)
-        return outputs
+        scale_z = NEW_EXEMPLAR_SIZE / s_z
+        return outputs + (scale_z,)
  
     # def train(self, data_ba):
  

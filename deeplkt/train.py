@@ -12,6 +12,7 @@ from deeplkt.models.base_model import BaseModel
 from deeplkt.utils.util import dotdict
 from deeplkt.tracker.lkt_tracker import LKTTracker
 from deeplkt.config import *
+
 #!/usr/bin/env python
 # coding: utf-8
 

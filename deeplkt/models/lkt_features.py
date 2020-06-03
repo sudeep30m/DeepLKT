@@ -21,7 +21,7 @@ class LKTFeaturesNet(LKTLayers):
         self.pad = nn.ReflectionPad2d(1)
         self.device = device
         self.alex = AlexNet()
-        self.alex.load_pretrained()
+        # self.alex.load_pretrained()
         self.conv1, self.conv2 = self.sobel_kernels(self.params.num_channels)
         self.instance_size = INSTANCE_SIZE
         self.exemplar_size = EXEMPLAR_SIZE
@@ -59,13 +59,15 @@ class LKTFeaturesNet(LKTLayers):
         sz = self.exemplar_size
         sx = self.instance_size
         centre = torch.Tensor([(sx / 2.0), (sx / 2.0)], device=self.device)
-                
+        # print("Center = ", centre)                
         xmin = centre[0] - sz / 2.0
         xmax = centre[0] + sz / 2.0
         
         coords = torch.tensor([xmin, xmin, xmax, xmax], device=self.device)  #exclusive
+        # print("Coords = ", coords)                
 
         img_quad = torch.tensor([xmin, xmax, xmin, xmin, xmax, xmin, xmax, xmax], device=self.device) #inclusive
+        # print("Img quad = ", img_quad)
         img_quad = img_quad.unsqueeze(0).repeat(B, 1)
         quads = []
         quad = img_quad
@@ -107,13 +109,13 @@ class LKTFeaturesNet(LKTLayers):
             itr += 1
             p = p_new
             quad = quad_new
-            quads.append(quad)
+            # quads.append(quad)
 
         # print("--------------------------------------------------------------------------------")
         # print(itr)
         sx_ker = self.conv1.weight.repeat(B, 1, 1, 1, 1)
         sy_ker = self.conv2.weight.repeat(B, 1, 1, 1, 1)
-        return quads, sobel_tx, sobel_ty, img_tcr, sx_ker, sy_ker
+        return quad, sobel_tx, sobel_ty, img_tcr, sx_ker, sy_ker
 
 # if __name__ == '__main__':
 #     device = torch.device("cuda")

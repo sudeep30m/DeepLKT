@@ -157,28 +157,30 @@ class LKTDataset(Dataset):
         return data
 
 
-    def get_modified_target(self, x, bbox):
-        bbox = bbox[np.newaxis, :]
-        bbox0 = x[2][np.newaxis, :]
+    def get_modified_target(self, x, bbox_gt):
+        bbox_gt = bbox_gt[np.newaxis, :]
+        bbox = x[2][np.newaxis, :]
+        y_gt = get_min_max_bbox(bbox_gt)
         y = get_min_max_bbox(bbox)
-        y0 = get_min_max_bbox(bbox0)
+        # print("BBox = ", bbox)
+        # print("Y = ", y)
 
-        size = np.array([y0[:, 2], y0[:, 3]])
+        size = np.array([y[:, 2], y[:, 3]])
         size = size.transpose()
         w_z = size[:, 0] + CONTEXT_AMOUNT * np.sum(size, 1)
         h_z = size[:, 1] + CONTEXT_AMOUNT * np.sum(size, 1)
         s_z = np.sqrt(w_z * h_z)
         scale_z = NEW_EXEMPLAR_SIZE / s_z
+        # print(w_z, h_z, s_z, scale_z)
+        y_gt -= y
+        y_gt = y_gt * scale_z
 
-        y -= y0
-        y = y * scale_z
-
-        y[:, 0] += (NEW_INSTANCE_SIZE / 2)
-        y[:, 1] += (NEW_INSTANCE_SIZE / 2)
-        y[:, 2] += (NEW_EXEMPLAR_SIZE)
-        y[:, 3] += (NEW_EXEMPLAR_SIZE)
-        y = get_region_from_center(y)
-        return y[0]        
+        y_gt[:, 0] += (NEW_INSTANCE_SIZE / 2)
+        y_gt[:, 1] += (NEW_INSTANCE_SIZE / 2)
+        y_gt[:, 2] += (NEW_EXEMPLAR_SIZE)
+        y_gt[:, 3] += (NEW_EXEMPLAR_SIZE)
+        y_gt = get_region_from_center(y_gt)
+        return y_gt[0]        
         
     # def get_train_data_point(self, ind):
     #     vid, idx = self.get_video_id(ind)
