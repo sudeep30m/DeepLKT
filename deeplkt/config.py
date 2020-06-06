@@ -17,7 +17,7 @@ INSTANCE_SIZE = 255
 VGG_SIZE = 224
 TRANSITION_LR = 1.0
 NUM_CLASSES=20
-NUM_CHECKPOINTS=2
+NUM_CHECKPOINTS=1
 
 
 # DEVICE = if torch.cuda.is_available() torch.device("cuda:0") else torch.device("cpu")

@@ -28,6 +28,19 @@ import math
 #     model.path = folder_path
 #     # lines[2] = ro
 
+def last_checkpoint(pth, vid=-1):
+    curr_max = -1
+    for file in os.listdir(pth):
+        # print(file[0:4])
+        if(file[0] != '.'):
+            files = file.split('-')
+            if (vid == -1 and files[0] != "best" and files[0][0] != 'v'):
+                curr_max = max(curr_max, int(files[0]))
+            elif(files[0] == ('v' + str(vid)) and files[1] != "best"):
+                curr_max = max(curr_max, int(files[1]))
+    return curr_max
+
+
 def best_checkpoint(pth, vid=-1):
     curr_max = -1
     for file in os.listdir(pth):
@@ -44,14 +57,6 @@ def best_checkpoint(pth, vid=-1):
     return curr_max
 
 
-def last_checkpoint(pth):
-    curr_max = -1
-    for file in os.listdir(pth):
-        # print(file[0:4])
-        if(file[0] != '.' and file[0:4] != 'best'):
-            files = file.split('-')
-            curr_max = max(curr_max, int(files[0]))
-    return curr_max
 
 def img_to_numpy(img):
 

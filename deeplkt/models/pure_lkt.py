@@ -17,7 +17,7 @@ class PureLKTNet(LKTLayers):
         super().__init__(device)
         self.params = params
         
-        self.conv1, self.conv2 = self.sobel_kernels(3)
+        self.conv1, self.conv2 = self.sobel_kernels(params.num_channels)
 
     def template(self, bbox):
         self.bbox = bbox
@@ -38,8 +38,9 @@ class PureLKTNet(LKTLayers):
         img_tcr = self.bbox
         B, C, h, w = img_tcr.shape
         p_init = torch.zeros((B, 6), device=self.device)
-        sz = EXEMPLAR_SIZE
-        sx = INSTANCE_SIZE
+
+        sz = h
+        sx = img_i.shape[2]
         centre = torch.Tensor([(sx / 2.0), (sx / 2.0)], device=self.device)
                 
         xmin = centre[0] - sz / 2.0
@@ -65,10 +66,7 @@ class PureLKTNet(LKTLayers):
         omega_t = torch.cat((omega_t, torch.ones((B, N, 1), device=self.device)), 2)  # (B x N x 3)
         while(self.params.max_iterations > 0):
 
-            omega_warp = omega_t.bmm(W)
-            # print(img_i.shape)
-            # print(omega_warp.shape)
-            
+            omega_warp = omega_t.bmm(W)            
             warped_i = self.sample_layer(img_i, omega_warp).permute(0, 2, 1) # (B x C x N)
             warped_i = warped_i.view(img_tcr.shape)
 

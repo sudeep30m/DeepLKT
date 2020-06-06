@@ -15,7 +15,7 @@ def plot_bar_graph(results, path):
     colors = [cmap(i) for i in np.linspace(0, 1, len(results))]
 
     df=pd.DataFrame(results)
-    df['sort_val'] = df.pure_lkt - df.learned_lkt
+    df['sort_val'] = df.grey_pure_lkt - df.grey_learned_lkt
     df = df.sort_values('sort_val').drop('sort_val', 1)
     pos = np.arange(num)
     bar_width = 0.3
@@ -52,11 +52,11 @@ vot = VotDataset(os.path.join(vot_root_dir,
                        'VOT_results/'), 
                  device)
 
-results = pkl_load('e3-results-seq.pkl')
-pure_lkt = results['pure_lkt']
-learned_lkt = results['learned_lkt']
+results = pkl_load('grey-synth-results-pair.pkl')
+pure_lkt = results['grey_pure_lkt']
+learned_lkt = results['grey_learned_lkt']
 
-print(pure_lkt[19], learned_lkt[19])
+# print(pure_lkt[19], learned_lkt[19])
 total = 0
 pure_lkt_iou = 0
 vgg_lkt_iou = 0
@@ -71,7 +71,7 @@ vgg_lkt_iou /= total
 # print("E1 pure")
 print(pure_lkt_iou, vgg_lkt_iou)
 # p
-# plot_bar_graph(results, "e2-results-pair.png")
+plot_bar_graph(results, "grey-synth-results-pair.png")
 
 
 

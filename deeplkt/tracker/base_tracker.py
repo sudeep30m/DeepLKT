@@ -87,6 +87,8 @@ class SiameseTracker(BaseTracker):
         #     pth = 'cropped/' +str(ind)+".jpg"
         #     if not os.path.exists(pth):
         #         cv2.imwrite(pth, im_patch)
+        im_patch = cv2.cvtColor(im_patch , cv2.COLOR_BGR2GRAY)
+        im_patch = np.expand_dims(im_patch, 2)
         im_patch = im_patch.transpose(2, 0, 1)
         im_patch = im_patch[np.newaxis, :, :, :]
         im_patch = im_patch.astype(np.float32)

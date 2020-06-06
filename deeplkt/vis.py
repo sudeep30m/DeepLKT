@@ -91,7 +91,7 @@ pure_model = BaseModel(tracker, 'checkpoint', 'logs', train_params)
 
 base_model_name = "Pure LKT"
 learned_model_name = "Learned LKT"
-seq = 23
+seq = 19
 pairWise = True
 # pure_model.eval_model(vot, seq, pairWise=pairWise)
 # learned_model.eval_model(vot, seq, pairWise=pairWise)

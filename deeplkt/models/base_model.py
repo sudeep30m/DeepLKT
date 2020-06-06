@@ -58,9 +58,8 @@ class BaseModel():
         print("Train dataset size = ", train_total)
         print("Valid dataset size = ", val_total)
 
-        # lc = last_checkpoint(self.checkpoint_dir)
-        lc = -1
-
+        lc = last_checkpoint(self.checkpoint_dir, vid=vid)
+        print("last checkpoint = ", lc)
         if(lc != -1):
             self.load_checkpoint(lc, vid=vid)
             print("Checkpoint loaded = {}".format(lc))
@@ -69,9 +68,9 @@ class BaseModel():
             print("EPOCH = ", epoch)
             train_loss = 0.0
             i = 0
-            print("Training for epoch:{}".format(epoch))
+            # print("Training for epoch:{}".format(epoch))
             start_time = time.time()
-            print("Total training batches = ", len(trainLoader))
+            # print("Total training batches = ", len(trainLoader))
             for batch in trainLoader:
                 # print(batch)
                 x, ynp = get_batch(dataset, batch)
@@ -111,19 +110,19 @@ class BaseModel():
                 i += 1
 
             train_loss /= i
-            print("Training time for {} epoch = {}".format(epoch, time.time() - start_time))
-            print("Training loss for {} epoch = {}".format(epoch, train_loss))
+            # print("Training time for {} epoch = {}".format(epoch, time.time() - start_time))
+            # print("Training loss for {} epoch = {}".format(epoch, train_loss))
 
             self.save_checkpoint(epoch, vid=vid)
             if(epoch >= NUM_CHECKPOINTS):
                 self.delete_checkpoint(epoch - NUM_CHECKPOINTS, vid=vid)
-            print("Validation for epoch:{}".format(epoch))
+            # print("Validation for epoch:{}".format(epoch))
             self.nn.model = self.nn.model.eval()
             valid_loss = 0.0
             i = 0
             start_time = time.time()
 
-            print("Total validation batches = ", len(validLoader))
+            # print("Total validation batches = ", len(validLoader))
 
             with torch.no_grad():
 
@@ -139,12 +138,12 @@ class BaseModel():
             valid_loss /= i
             if(valid_loss < best_val):
                 best_val = valid_loss
-                print("Epoch = ", epoch)
-                print("Best validation loss = ", best_val)
+                # print("Epoch = ", epoch)
+                # print("Best validation loss = ", best_val)
                 self.save_checkpoint(epoch, best=True, vid=vid)
                 self.best = epoch
             # print("Total validation batches = ", i)
-            print("Validation time for {} epoch = {}".format(epoch, time.time() - start_time))
+            # print("Validation time for {} epoch = {}".format(epoch, time.time() - start_time))
 
 
             info = {'train_loss': train_loss, 
@@ -251,7 +250,7 @@ class BaseModel():
                 sx = img_to_numpy(sx[0])
                 sy = img_to_numpy(sy[0])
 
-                for i in range(3):
+                for i in range(self.nn.model.params.num_channels):
                     cv2.imwrite(join(model_out_dir,\
                         str(img_pair) + "-sx-" + str(i) +".jpeg"), sx[:, :, i])
                     cv2.imwrite(join(model_out_dir,\

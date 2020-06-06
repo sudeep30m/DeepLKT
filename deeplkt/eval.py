@@ -77,6 +77,9 @@ learned_model.load_checkpoint(bc, best=True)
 print("Checkpoint loaded  = ", bc)
 # print(count_parameters(net))
 
+for x in  net.model.nn.parameters():
+        print(x)
+
 params = dotdict({
     'mode' : MODE,
     'max_iterations' : MAX_LK_ITERATIONS,
@@ -97,8 +100,8 @@ learned_lkt = []
 for i in range(vot.get_num_videos()):
 
     pure_lkt.append(pure_model.eval_model(vot, i, pairWise=True))
-    bc = best_checkpoint(learned_model.checkpoint_dir, vid=i)
-    learned_model.load_checkpoint(bc, best=True, vid=i)
+#    bc = best_checkpoint(learned_model.checkpoint_dir, vid=i)
+#    learned_model.load_checkpoint(bc, best=True, vid=i)
     learned_lkt.append(learned_model.eval_model(vot, i, pairWise=True))
 
 results = {}
