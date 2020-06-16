@@ -49,8 +49,8 @@ vot = VotDataset(os.path.join(vot_root_dir,
                  os.path.join(vot_root_dir,
                        'VOT_ann/'),
                  os.path.join(vot_root_dir,
-                       'VOT_results/'), 
-                 device)
+                       'VOT_results/')
+                 )
 
 results = pkl_load('results-pair.pkl')
 pure_lkt = results['pure_lkt']

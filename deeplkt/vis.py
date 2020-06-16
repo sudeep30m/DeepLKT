@@ -34,16 +34,16 @@ vot = VotDataset(os.path.join(vot_root_dir,
                  os.path.join(vot_root_dir,
                        'VOT_ann/'),
                  os.path.join(vot_root_dir,
-                       'VOT_results/'), 
-                 device)
+                       'VOT_results/')
+                 )
 
 # alov = AlovDataset(os.path.join(alov_root_dir,
 #                        'ALOV_images/'),
 #                    os.path.join(alov_root_dir,
 #                        'ALOV_ann/'),
 #                    os.path.join(alov_root_dir,
-#                        'ALOV_results/'), 
-#                        device)
+#                        'ALOV_results/')
+#                        )
 
 
 

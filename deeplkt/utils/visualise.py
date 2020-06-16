@@ -12,6 +12,11 @@ import pandas as pd
 from deeplkt.datasets.dataset import *
 from deeplkt.utils.model_utils import calc_iou
 
+
+
+
+
+
 def convertVideoToDir(video_path, output_dir):
     cap = cv2.VideoCapture(video_path)
     cnt = 0
@@ -212,8 +217,12 @@ def visualise_resized_transitions(img_dir, m_dir, out_dir):
             cv2.imwrite(join(out_path, str(j) +".jpeg"), img)
         i += 1
 
-def visualise_transitions(img_dir, m_dir, out_dir):
+def visualise_transitions(dataset, idx, m1):
 
+    out_video = dataset.get_out_video_path(idx)
+    img_dir = join(out_video, "img_tcr")        
+    m_dir = join(out_video, m1)
+    out_dir = join(out_video, "transitions", m1)        
     make_dir(out_dir)
     sz = EXEMPLAR_SIZE
     sx = INSTANCE_SIZE
@@ -237,7 +246,14 @@ def visualise_transitions(img_dir, m_dir, out_dir):
             cv2.imwrite(join(out_path, str(j) +".jpeg"), img_i)
         i += 1
 
-def visualise_resized_images(img_dir, m1_dir, m2_dir, out2_dir):
+
+def visualise_resized_images(dataset, idx, m1, m2):
+
+    out_video = dataset.get_out_video_path(idx)
+    img_dir = join(out_video, "img_tcr")        
+    m1_dir = join(out_video, m1)
+    m2_dir = join(out_video, m2)
+    out2_dir = join(out_video, "resize-results")
     font                   = cv2.FONT_HERSHEY_DUPLEX
     fontScale              = 0.5
     fontColor              = (255,255,255)
@@ -295,8 +311,14 @@ def visualise_resized_images(img_dir, m1_dir, m2_dir, out2_dir):
         cv2.imwrite(join(out2_dir, str(i) +".jpeg"), img)
         i += 1
 
-def visualise_images(img_dir, m1_dir, m2_dir, out2_dir):
-    # make_dir(output_dir)
+def visualise_images(dataset, idx, m1, m2):
+
+    out_video = dataset.get_out_video_path(idx)
+    img_dir = join(out_video, "img_tcr")        
+    m1_dir = join(out_video, m1)
+    m2_dir = join(out_video, m2)
+    out2_dir = join(out_video, "results")
+    
     make_dir(out2_dir)
 
     images = int(len(os.listdir(img_dir)) / 3)
@@ -332,8 +354,14 @@ def visualise_images(img_dir, m1_dir, m2_dir, out2_dir):
         cv2.imwrite(join(out2_dir, str(i) +".jpeg"), img_i)
         i += 1
 
-# Only pairwise
-def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
+
+def visualise_sobels(dataset, idx, m1, m2):
+
+    out_video = dataset.get_out_video_path(idx)
+    img_dir = join(out_video, "img_tcr")        
+    m1_dir = join(out_video, m1)
+    m2_dir = join(out_video, m2)
+    output_dir = join(out_video, "sobels")
     make_dir(output_dir)
 
     out = []
@@ -722,16 +750,16 @@ if __name__ == '__main__':
                     os.path.join(vot_root_dir,
                         'VOT_ann/'),
                     os.path.join(vot_root_dir,
-                        'VOT_results/'), 
-                    device)
+                        'VOT_results/')
+                    )
 
     alov = AlovDataset(os.path.join(alov_root_dir,
                         'ALOV_images/'),
                     os.path.join(alov_root_dir,
                         'ALOV_ann/'),
                     os.path.join(alov_root_dir,
-                        'ALOV_results/'), 
-                        device)
+                        'ALOV_results/')
+                        )
 
     results = '../vot/'
     for i in range(1000):
