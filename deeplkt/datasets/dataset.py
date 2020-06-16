@@ -18,7 +18,6 @@ class LKTDataset(Dataset):
     def __init__(self):
         self.x = []
         self.y = []
-        self.z = []
         self.inp_ids = []
         self.out_ids = []
         self.index_dict = {}
@@ -256,7 +255,7 @@ class AlovDataset(LKTDataset):
         self.index_dict = {}
         self.video_dict = {}
 
-        self.x, self.y, self.z, self.inp_ids, self.out_ids = self._parse_data(root_dir, annot_dir, result_dir)
+        self.x, self.y, self.inp_ids, self.out_ids = self._parse_data(root_dir, annot_dir, result_dir)
         self.num_videos = len(self.x)
         self.device = device
 
@@ -268,7 +267,6 @@ class AlovDataset(LKTDataset):
         """
         x_videos = []
         y_videos = []
-        z_videos = []
         inp_ids = []
         out_ids = []
         envs = os.listdir(root_dir)
@@ -281,16 +279,15 @@ class AlovDataset(LKTDataset):
                     continue
                 x = []
                 y = []
-                z = []
-                vid_src = root_dir + env + "/" + vid
-                vid_ann = anno_dir + env + "/" + vid + ".ann"
-                vid_res = result_dir + env + "/" + vid
+                vid_src = join(root_dir, env, vid)
+                vid_ann = join(anno_dir, env, vid + ".ann")
+                vid_res = join(result_dir, env, vid)
                 self.make_dir(vid_res)
-                self.make_dir(vid_res + "/images")
+                self.make_dir(join(vid_res,"images"))
                 frames = os.listdir(vid_src)
                 frames.sort()
-                frames_inp = [vid_src + "/" + frame for frame in frames]
-                frames_out = [vid_res + "/images/" + frame for frame in frames]
+                frames_inp = [join(vid_src,frame) for frame in frames]
+                frames_out = [join(vid_res, "images", frame) for frame in frames]
 
                 f = open(vid_ann, "r")
                 annotations = f.readlines()
@@ -304,12 +301,10 @@ class AlovDataset(LKTDataset):
                     next_idx = frame_idxs[i+1]
                     x.append([frames_inp[idx], frames_inp[next_idx]])
                     y.append([annotations[i], annotations[i+1]])
-                    z.append([frames_out[idx], frames_out[next_idx]])
                     
                     
                 x_videos.append(x)
                 y_videos.append(y)
-                z_videos.append(z)
                 inp_ids.append(vid_src)
                 out_ids.append(vid_res)
 
@@ -325,7 +320,7 @@ class AlovDataset(LKTDataset):
                 self.index_dict[self.num_samples] = (i, j)
                 self.video_dict[(i, j)] = self.num_samples
                 self.num_samples += 1
-        return x_videos, y_videos, z_videos, inp_ids, out_ids
+        return x_videos, y_videos, inp_ids, out_ids
 
 
     def get_quad(self, ann):
@@ -362,7 +357,7 @@ class VotDataset(LKTDataset):
         self.video_dict = {}
 
 
-        self.x, self.y, self.z, self.inp_ids, self.out_ids = self._parse_data(root_dir, annot_dir, result_dir)
+        self.x, self.y, self.inp_ids, self.out_ids = self._parse_data(root_dir, annot_dir, result_dir)
         self.num_videos = len(self.x)
         self.device = device
 
@@ -374,7 +369,6 @@ class VotDataset(LKTDataset):
         """
         x_videos = []
         y_videos = []
-        z_videos = []
         out_ids = []
         inp_ids = []
         num_anno = 0
@@ -385,17 +379,16 @@ class VotDataset(LKTDataset):
             # print(vid)
             x = []
             y = []
-            z = []
-            vid_src = root_dir + vid
-            vid_ann = anno_dir + vid + "/groundtruth.txt"
-            vid_res = result_dir + vid
+            vid_src = join(root_dir, vid)
+            vid_ann = join(anno_dir, vid, "groundtruth.txt")
+            vid_res = join(result_dir, vid)
             self.make_dir(vid_res)
-            self.make_dir(vid_res + "/images")
+            self.make_dir(join(vid_res, "images"))
 
             frames = os.listdir(vid_src)
             frames.sort()
-            frames_inp = [vid_src + "/" + frame for frame in frames]
-            frames_out = [vid_res + "/images/" + frame for frame in frames]
+            frames_inp = [join(vid_src, frame) for frame in frames]
+            frames_out = [join(vid_res, "images", frame) for frame in frames]
             
             f = open(vid_ann, "r")
             annotations = f.readlines()
@@ -403,11 +396,9 @@ class VotDataset(LKTDataset):
             for i in range(len(frames) - 1):
                 x.append([frames_inp[i], frames_inp[i + 1]])
                 y.append([annotations[i], annotations[i + 1]])
-                z.append([frames_out[i], frames_out[i + 1]])
                 num_anno += 1
             x_videos.append(x)
             y_videos.append(y)
-            z_videos.append(z)
             inp_ids.append(vid_src)
             out_ids.append(vid_res)
             
@@ -424,7 +415,7 @@ class VotDataset(LKTDataset):
                 self.video_dict[(i, j)] = self.num_samples
                 self.num_samples += 1
 
-        return x_videos, y_videos, z_videos, inp_ids, out_ids
+        return x_videos, y_videos, inp_ids, out_ids
 
     def get_quad(self, ann):
         """
