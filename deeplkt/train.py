@@ -3,6 +3,8 @@ import torch.nn as nn
 from deeplkt.datasets.dataset import *
 from torch.utils.data import DataLoader
 from deeplkt.models.pure_lkt import PureLKTNet
+from deeplkt.models.lkt_features import LKTFeaturesNet
+
 from deeplkt.models.lkt_vggsobel import LKTVGGSobelNet
 from deeplkt.models.lkt_vggimproved import LKTVGGImproved
 from deeplkt.models.base_model import BaseModel
@@ -10,6 +12,7 @@ from deeplkt.models.base_model import BaseModel
 from deeplkt.utils.util import dotdict
 from deeplkt.tracker.lkt_tracker import LKTTracker
 from deeplkt.config import *
+
 #!/usr/bin/env python
 # coding: utf-8
 
@@ -31,16 +34,16 @@ vot = VotDataset(os.path.join(vot_root_dir,
                  os.path.join(vot_root_dir,
                        'VOT_ann/'),
                  os.path.join(vot_root_dir,
-                       'VOT_results/'), 
-                 device)
+                       'VOT_results/')
+                )
 
 alov = AlovDataset(os.path.join(alov_root_dir,
                        'ALOV_images/'),
                    os.path.join(alov_root_dir,
                        'ALOV_ann/'),
                    os.path.join(alov_root_dir,
-                       'ALOV_results/'), 
-                       device)
+                       'ALOV_results/')
+                    )
 
 
 from deeplkt.config import *
@@ -49,13 +52,14 @@ params = dotdict({
     'max_iterations' : MAX_LK_ITERATIONS,
     'epsilon' : EPSILON,
     'num_classes': NUM_CLASSES,
-    'info': "Attention LKT"
+    'num_channels': NUM_CHANNELS,
+    'info': "FeaturesLKT"
 })
 # lr = 0.0005
 # momentum = 0.5
 
 
-net = LKTVGGImproved(device, params)
+net = LKTFeaturesNet(device, params)
 tracker = LKTTracker(net)
 train_params = dotdict({
     'batch_size' : BATCH_SIZE,
@@ -69,9 +73,9 @@ train_params = dotdict({
 })
 
 model = BaseModel(tracker, 'checkpoint', 'logs', train_params)
-# def count_parameters(model):
-#     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-# print(count_parameters(net))
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(count_parameters(net))
 
 model.train_model(vot)
 

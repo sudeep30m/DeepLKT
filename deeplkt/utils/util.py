@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import glob
 from os.path import isfile, join
+import pickle as pkl
 
 class dotdict(dict):
     def __getattr__(self, name):
@@ -17,6 +18,16 @@ class dotdict(dict):
 #         torch.cuda.memory_cached() / 1024 / 1024,
 #         torch.cuda.max_memory_cached() / 1024 / 1024
 #     ))
+
+def pkl_save(pth, obj):
+    f = open(pth, "wb")
+    pkl.dump(obj, f)
+    f.close()
+
+def pkl_load(pth):
+    f = open(pth, "rb")
+    obj = pkl.load(f)
+    return obj
 
 def make_dir(path):
     if not os.path.exists(path):
@@ -47,6 +58,7 @@ def draw(images, cols):
         
 def warp(x, y, p):
     return np.array([(1. + p[0]) * x + p[2] * y + p[4], p[1] * x + (1 + p[3]) * y + p[5]], dtype='float32')
+
 
 
 def get_warped_corners(x1, y1, x2, y2, p):

@@ -10,6 +10,11 @@ from os.path import join, isfile
 import matplotlib.pyplot as plt
 import pandas as pd
 from deeplkt.datasets.dataset import *
+from deeplkt.utils.model_utils import calc_iou
+
+
+
+
 
 
 def convertVideoToDir(video_path, output_dir):
@@ -166,11 +171,11 @@ def outputBboxes(input_images_path, output_images_path, output_file_path):
             img_index += 1
 
 def visualise_sobel_kernel(kernel):
-    img = np.zeros((200, 200, 3)) 
-    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    img = np.zeros((200, 200, 3)) + 255.0
+    font                   = cv2.FONT_HERSHEY_DUPLEX
     fontScale              = 0.5
-    fontColor              = (255,255,255)
-    lineType               = 2 
+    fontColor              = (0,0,0)
+    lineType               = 1
 
     for j in range(3):
         for i in range(3):
@@ -180,7 +185,7 @@ def visualise_sobel_kernel(kernel):
                 fontScale,
                 fontColor,
                 lineType)
-    img = cv2.resize(img, (100, 100))
+    # img = cv2.resize(img, (100, 100))
 
     return img
 
@@ -212,8 +217,12 @@ def visualise_resized_transitions(img_dir, m_dir, out_dir):
             cv2.imwrite(join(out_path, str(j) +".jpeg"), img)
         i += 1
 
-def visualise_transitions(img_dir, m_dir, out_dir):
+def visualise_transitions(dataset, idx, m1):
 
+    out_video = dataset.get_out_video_path(idx)
+    img_dir = join(out_video, "img_tcr")        
+    m_dir = join(out_video, m1)
+    out_dir = join(out_video, "transitions", m1)        
     make_dir(out_dir)
     sz = EXEMPLAR_SIZE
     sx = INSTANCE_SIZE
@@ -237,8 +246,15 @@ def visualise_transitions(img_dir, m_dir, out_dir):
             cv2.imwrite(join(out_path, str(j) +".jpeg"), img_i)
         i += 1
 
-def visualise_resized_images(img_dir, m1_dir, m2_dir, out2_dir):
-    font                   = cv2.FONT_HERSHEY_SIMPLEX
+
+def visualise_resized_images(dataset, idx, m1, m2):
+
+    out_video = dataset.get_out_video_path(idx)
+    img_dir = join(out_video, "img_tcr")        
+    m1_dir = join(out_video, m1)
+    m2_dir = join(out_video, m2)
+    out2_dir = join(out_video, "resize-results")
+    font                   = cv2.FONT_HERSHEY_DUPLEX
     fontScale              = 0.5
     fontColor              = (255,255,255)
     lineType               = 2 
@@ -295,8 +311,14 @@ def visualise_resized_images(img_dir, m1_dir, m2_dir, out2_dir):
         cv2.imwrite(join(out2_dir, str(i) +".jpeg"), img)
         i += 1
 
-def visualise_images(img_dir, m1_dir, m2_dir, out2_dir):
-    # make_dir(output_dir)
+def visualise_images(dataset, idx, m1, m2):
+
+    out_video = dataset.get_out_video_path(idx)
+    img_dir = join(out_video, "img_tcr")        
+    m1_dir = join(out_video, m1)
+    m2_dir = join(out_video, m2)
+    out2_dir = join(out_video, "results")
+    
     make_dir(out2_dir)
 
     images = int(len(os.listdir(img_dir)) / 3)
@@ -310,9 +332,9 @@ def visualise_images(img_dir, m1_dir, m2_dir, out2_dir):
         img_i_learned = cv2.imread(join(img_dir, str(i) +"_i.jpeg"))
         
         quad_pure = np.load(join(m1_dir, str(i) +"-quad.npy"))
-        quad_pure_id = np.load(join(m1_dir, str(i) +"-quad-id.npy"))
+        # quad_pure_id = np.load(join(m1_dir, str(i) +"-quad-id.npy"))
         quad_learned = np.load(join(m2_dir, str(i) +"-quad.npy"))
-        quad_learned_id = np.load(join(m2_dir, str(i) +"-quad-id.npy"))
+        # quad_learned_id = np.load(join(m2_dir, str(i) +"-quad-id.npy"))
         quad_gt = np.load(join(img_dir, str(i) +"-quad-gt.npy"))
         # sz = EXEMPLAR_SIZE
         # sx = INSTANCE_SIZE
@@ -332,29 +354,60 @@ def visualise_images(img_dir, m1_dir, m2_dir, out2_dir):
         cv2.imwrite(join(out2_dir, str(i) +".jpeg"), img_i)
         i += 1
 
-def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
+
+def visualise_sobels(dataset, idx, m1, m2):
+
+    out_video = dataset.get_out_video_path(idx)
+    img_dir = join(out_video, "img_tcr")        
+    m1_dir = join(out_video, m1)
+    m2_dir = join(out_video, m2)
+    output_dir = join(out_video, "sobels")
     make_dir(output_dir)
 
     out = []
     images = int(len(os.listdir(img_dir)) / 3)
 
-    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    font                   = cv2.FONT_HERSHEY_DUPLEX
     fontScale              = 0.5
-    fontColor              = (255,255,255)
-    lineType               = 2 
-
-
+    fontColor              = (0,0,0)
+    lineType               = 1
 
     i = 0
+    mx = 0.0
+    idd = 0
+    best = 98
     while(True):
-        if not (os.path.exists(join(img_dir, str(i) +".jpeg"))):
+        print(i)
+        pth = join(m1_dir, str(i) +"_pip_tcr.jpeg")
+        if not os.path.exists(pth):
             break
-        poster = np.zeros((860, 700, 3))
-        img_tcr = cv2.imread(join(img_dir, str(i) +".jpeg"))
+        poster = np.zeros((860, 700, 3)) + 255
+        img_tcr = cv2.imread(join(m1_dir, str(i) +"_pip_tcr.jpeg"))
+        if(i == best):
+            cv2.imwrite("best/best-img_tcr.jpeg", img_tcr)
         img_tcr = cv2.resize(img_tcr, (100, 100))
+        img_i = cv2.imread(join(m1_dir, str(i) +"_pip_i.jpeg"))
+        quad_pure = np.load(join(m1_dir, str(i) +"_quad_pip.npy"))
+        quad_learned = np.load(join(m2_dir, str(i) +"_quad_pip.npy"))
+        quad_id = np.load(join(m1_dir, str(i) +"_quad_pip_id.npy"))
+        quad_gt = np.load(join(m1_dir, str(i) +"_quad_pip_gt.npy"))
+        iou = calc_iou(quad_gt, quad_learned) - calc_iou(quad_gt, quad_pure)
+        if(iou >= mx):
+            print(mx, iou)
+            mx = iou
+            idd = i
+        img_i = draw_bbox(img_i, quad_pure, color=(0, 255, 255), thk=1)
+        img_i = draw_bbox(img_i, quad_learned, color=(0, 255, 0), thk=1)
+        img_i = draw_bbox(img_i, quad_gt, color=(0, 0, 255), thk=1)
+        img_i = draw_bbox(img_i, quad_id, color=(255, 0, 0), thk=1)
+        if(i == best):
+            cv2.imwrite("best-imp.jpeg", img_i)
+        img_i = cv2.resize(img_i, (200, 200))
+                
 
         poster[100:200, 90:190, :] = img_tcr
-
+        poster[400:600, 40:240, :] = img_i
+        
         cv2.putText(poster, "Img tcr", 
             (110, 220), 
             font, 
@@ -362,12 +415,12 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
             fontColor,
             lineType)
 
-        # cv2.putText(poster, "Img i", 
-        #     (75, 620), 
-        #     font, 
-        #     fontScale,
-        #     fontColor,
-        #     lineType)
+        cv2.putText(poster, "Img i", 
+            (105, 620), 
+            font, 
+            fontScale,
+            fontColor,
+            lineType)
 
         # cv2.putText(poster, "Learned LKT results", 
         #     (65, 820), 
@@ -398,31 +451,48 @@ def visualise_sobels(img_dir, m1_dir, m2_dir, output_dir):
 
 
         for j in range(3):
-            sx = cv2.imread(join(m1_dir, str(i)+"-x-"+str(j) +".jpeg"))
+            sx = cv2.imread(join(m1_dir, str(i)+"-sx-"+str(j) +".jpeg"))
+            if(i == best):
+                cv2.imwrite("best-sx-pure-"+str(j)+".jpeg", sx)
             sx = cv2.resize(sx, (100, 100))
             poster[140*j+ 30:140*j+130, 280:380, :] = sx
         for j in range(3, 6):
-            sy = cv2.imread(join(m1_dir, str(i)+"-y-"+str(j-3) +".jpeg"))
+            sy = cv2.imread(join(m1_dir, str(i)+"-sy-"+str(j-3) +".jpeg"))
+            if(i == best):
+                cv2.imwrite("best-sy-pure-"+str(j-3)+".jpeg", sy)
             sy = cv2.resize(sy, (100, 100))
             poster[ 140*j+ 30:140*j+130, 280:380,:] = sy
         sx_ker = np.load(join(m2_dir, str(i)+"-sx.npy"))
         sy_ker = np.load(join(m2_dir, str(i)+"-sy.npy"))
         # print(sx_ker.shape, sy_ker.shape)
         for j in range(3):
-            sx = cv2.imread(join(m2_dir, str(i)+"-x-"+str(j) +".jpeg"))
+            sx = cv2.imread(join(m2_dir, str(i)+"-sx-"+str(j) +".jpeg"))
+            if(i == best):
+                cv2.imwrite("best-sx-learned-"+str(j)+".jpeg", sx)
             sx = cv2.resize(sx, (100, 100))
             poster[ 140*j+ 30:140*j+130, 420:520,:] = sx
             sx_img = visualise_sobel_kernel(sx_ker[j, 0, :, :])
+            if(i == best):
+                cv2.imwrite("best-sx-learned-sobel-"+str(j)+".jpeg", sx_img)
+            sx_img = cv2.resize(sx_img, (100, 100))
+
             poster[ 140*j+ 30:140*j+130, 560:660,:] = sx_img
 
         for j in range(3, 6):
-            sy = cv2.imread(join(m2_dir, str(i)+"-y-"+str(j-3) +".jpeg"))
+            sy = cv2.imread(join(m2_dir, str(i)+"-sy-"+str(j-3) +".jpeg"))
+            if(i == best):
+                cv2.imwrite("best-sy-learned-"+str(j-3)+".jpeg", sy)
             sy = cv2.resize(sy, (100, 100))
             poster[ 140*j+ 30:140*j+130, 420:520, :] = sy
             sy_img = visualise_sobel_kernel(sy_ker[j-3, 0, :, :])
+            if(i == best):
+                cv2.imwrite("best-sy-learned-sobel-"+str(j)+".jpeg", sy_img)
+            sy_img = cv2.resize(sy_img, (100, 100))
             poster[ 140*j+ 30:140*j+130, 560:660,:] = sy_img
         out.append(poster)
         i += 1
+    print("Max idd = ", idd)
+    print("Max IOU diff = ", mx)
     writeImagesToFolder(out, output_dir)
 
 def writeImagesToFolder(imgs, folder_dir):
@@ -604,6 +674,39 @@ def transform_to_gt(x, y):
     quad_num = get_region_from_corner(bbox[np.newaxis, :])[0]
     return quad_num
 
+def plot_bar_graph(results, path):
+    cmap = plt.get_cmap('tab10')
+    for k in results:
+        num = len(results[k])
+    # print(num)
+    results['x'] = np.array(range(1, num + 1))
+    colors = [cmap(i) for i in np.linspace(0, 1, len(results))]
+
+    df=pd.DataFrame(results)
+    df['sort_val'] = df.pure_lkt - df.learned_lkt
+    df = df.sort_values('sort_val').drop('sort_val', 1)
+    pos = np.arange(num)
+    bar_width = 0.3
+    leg = []
+    for (i, label) in enumerate(results):
+        if(label == 'x'):
+            continue
+        leg.append(label)
+
+    for (i, label) in enumerate(results):
+        if(label == 'x'):
+            continue
+        plt.bar(pos + i*bar_width, label, bar_width, data=df, color=cmap(i), edgecolor='black')
+        # plt.plot( 'x', label, data=df, c = cmap(i))
+
+    plt.legend(leg)
+    plt.xticks(pos + 0.1, df['x'])
+    plt.ylim(0.6, 1.0)
+    plt.xlabel('VOT sequence')
+    plt.ylabel('IOU')
+    plt.title('Pairwise IOU Pure LKT vs Learned Sobel LKT')
+    plt.savefig(path)
+
 def plot_different_results(results, path):
     cmap = plt.get_cmap('tab10')
     for k in results:
@@ -630,7 +733,6 @@ def plot_different_results(results, path):
     plt.savefig(path)
 
 
-
 if __name__ == '__main__':
     # pth = '/home/sudeep/Documents/mtp/lkt/data/VOT/VOT_images/VOT_02'
     # convert_frames_to_video(pth, '/home/sudeep/Documents/mtp/pysot/demo/basketball.avi', 30)
@@ -648,16 +750,16 @@ if __name__ == '__main__':
                     os.path.join(vot_root_dir,
                         'VOT_ann/'),
                     os.path.join(vot_root_dir,
-                        'VOT_results/'), 
-                    device)
+                        'VOT_results/')
+                    )
 
     alov = AlovDataset(os.path.join(alov_root_dir,
                         'ALOV_images/'),
                     os.path.join(alov_root_dir,
                         'ALOV_ann/'),
                     os.path.join(alov_root_dir,
-                        'ALOV_results/'), 
-                        device)
+                        'ALOV_results/')
+                        )
 
     results = '../vot/'
     for i in range(1000):
