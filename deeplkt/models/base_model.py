@@ -13,6 +13,7 @@ import time
 import torch
 import numpy as np
 import cv2
+from scipy.special import huber
 
 class BaseModel():
 
@@ -28,10 +29,6 @@ class BaseModel():
         make_dir(logs_dir)
         self.logs_dir = logs_dir
         self.writer = Logger(logs_dir)
-        # self.optimizer = SGD(self.nn.model.parameters(),\
-        #                         lr=params.lr,\
-        #                         momentum=params.momentum,\
-        #                         weight_decay=params.l2)
         self.optimizer = Adam(self.nn.model.parameters())
         self.loss = nn.SmoothL1Loss()
         self.params = params
@@ -49,10 +46,11 @@ class BaseModel():
         print("Train dataset size = ", train_total)
         print("Valid dataset size = ", val_total)
 
-        lc = last_checkpoint(self.checkpoint_dir)
-        if(lc != -1):
-            self.load_checkpoint(lc)
-            print("Checkpoint loaded = {}".format(lc))
+        lc = -1
+        # lc = last_checkpoint(self.checkpoint_dir)
+        # if(lc != -1):
+        #     self.load_checkpoint(lc)
+        #     print("Checkpoint loaded = {}".format(lc))
         best_val = float("inf")
         for epoch in range(lc + 1, NUM_EPOCHS):
             print("EPOCH = ", epoch)
@@ -61,37 +59,21 @@ class BaseModel():
             print("Training for epoch:{}".format(epoch))
             start_time = time.time()
             print("Total training batches = ", len(trainLoader))
-            for batch in trainLoader:
-                # if(i < 30):
-                #     i += 1
-                #     continue
-
-                # print(batch)
+            for bind, batch in enumerate(trainLoader):
+                # print(bind)
                 x, ynp = get_batch(dataset, batch)
                 y = torch.tensor(ynp, device=self.nn.model.device).float()
                 self.optimizer.zero_grad()
                 self.nn.init(x[0], x[2])
-                y_pred = self.nn.train(x[1])
-                # print(probs.shape)
-                # pmx, pind = probs.max(1)
-                # pmx = pmx[:, 0, 0, 0]
-                # pind = pind[:, 0, 0, 0]
-                # print(pmx, pind)
-                # print(y)
-                # print(y_pred)
-                loss = self.loss(y_pred, y)
-                # print(loss)
+                # print(len(self.nn.train(x[1])))
+                outputs = self.nn.train(x[1])
+                y_pred = outputs[0]
+                scale_z = outputs[-1]
+                scale_z = torch.from_numpy(scale_z).to(self.nn.model.device).float()
+                scale_z = scale_z.view(scale_z.shape[0], 1)               
+                loss = self.loss(y_pred / scale_z, y / scale_z)
                 train_loss += loss
-                # for p in self.nn.model.parameters():
-                #     if(p.requires_grad):
-                #         print(p.grad)
                 params = [x for x in self.nn.model.parameters() if x.requires_grad]
-                # print(len(params))
-                # grads = torch.autograd.grad(loss,\
-                #                             params,\
-                #                             retain_graph=True,\
-                #                             create_graph=True, allow_unused=True)
-                # print(grads)
                 loss.backward()
                 # print(self.nn.model.vgg.sobelx.grad[0, pind[0], 0, :, :])
                 # print(self.nn.model.vgg.sobelx.grad[0, pind[1], 0, :, :])
@@ -99,7 +81,7 @@ class BaseModel():
                 # print(self.nn.model.vgg.sobelx.grad[0, pind[3], 0, :, :])
 
                 self.optimizer.step()
-                print(i)
+                # print(i)
                 i += 1
 
             train_loss /= i
@@ -107,8 +89,8 @@ class BaseModel():
             print("Training loss for {} epoch = {}".format(epoch, train_loss))
 
             self.save_checkpoint(epoch)
-            if(epoch > 15):
-                self.delete_checkpoint(epoch - 15)
+            if(epoch > NUM_CHECKPOINTS):
+                self.delete_checkpoint(epoch - NUM_CHECKPOINTS)
             print("Validation for epoch:{}".format(epoch))
             self.nn.model = self.nn.model.eval()
             valid_loss = 0.0
@@ -123,11 +105,18 @@ class BaseModel():
                     x, y = get_batch(dataset, batch)
                     y = torch.tensor(y, device=self.nn.model.device).float()
                     self.nn.init(x[0], x[2])
-                    y_pred = self.nn.train(x[1])
-                    loss = self.loss(y_pred, y)
+                    outputs = self.nn.train(x[1])
+                    y_pred = outputs[0]
+                    scale_z = outputs[-1]
+                    scale_z = torch.from_numpy(scale_z).to(self.nn.model.device).float()
+                    scale_z = scale_z.view(scale_z.shape[0], 1)               
+                    loss = self.loss(y_pred / scale_z, y / scale_z)
                     valid_loss += loss
                     i += 1
             valid_loss /= i
+            print("Validation time for {} epoch = {}".format(epoch, time.time() - start_time))
+            print("Validation loss for {} epoch = {}".format(epoch, valid_loss))
+
             if(valid_loss < best_val):
                 best_val = valid_loss
                 print("Epoch = ", epoch)
@@ -135,7 +124,7 @@ class BaseModel():
                 self.save_checkpoint(epoch, best=True)
                 self.best = epoch
             # print("Total validation batches = ", i)
-            print("Validation time for {} epoch = {}".format(epoch, time.time() - start_time))
+            # print("Validation time for {} epoch = {}".format(epoch, time.time() - start_time))
 
 
             info = {'train_loss': train_loss, 
@@ -144,7 +133,7 @@ class BaseModel():
                 self.writer.scalar_summary(tag, value, epoch + 1)
 
 
-    def eval_model(self, dataset, vid):
+    def eval_model(self, dataset, vid, pairWise):
         self.nn.model = self.nn.model.eval()
 
         num_img_pair = dataset.get_num_images(vid)
@@ -157,106 +146,78 @@ class BaseModel():
         out_video = dataset.get_out_video_path(vid)
         info = self.nn.model.params.info
         imgs_out_dir = join(out_video, "img_tcr")        
-        sobel_out_dir = join(out_video, info)
+        model_out_dir = join(out_video, info)
         make_dir(imgs_out_dir)
-        make_dir(sobel_out_dir)
+        make_dir(model_out_dir)
         print("Evaluating dataset for video ", vid)
-        data_x, quad_old = dataset.get_data_point(vid, 0)
+        data_x, quad_gt = dataset.get_data_point(vid, 0)
         quads.append(data_x[2])
         # data_x[0] = data_x[0][np.newaxis, :, :, :]
         # bbox = data_x[2][np.newaxis, :]
         # self.nn.init(data_x[0], bbox)
         self.nn.cnt = 0
         start_t = time.time()
-        
+        loss = 0
+        sz_loss = 0
         with torch.no_grad():
             for img_pair in range(num_img_pair):
                 # print(img_pair)
-                data_x, quad_old = dataset.get_data_point(vid, img_pair)
-                _, quad_train = dataset.get_train_data_point(vid, img_pair)
+                data_x, quad_gt = dataset.get_data_point(vid, img_pair)
+                _, quad_pip_gt = dataset.get_train_data_point(vid, img_pair)
                 data_x[0] = data_x[0][np.newaxis, :, :, :]
                 bbox = data_x[2][np.newaxis, :]
                 data_x[1] = data_x[1][np.newaxis, :, :, :]
 
-                quad = bbox
-                if(img_pair == 0):
+                if(img_pair == 0 and not pairWise):
+                    quad = bbox
                     self.nn.init(data_x[0], quad)
+                elif(pairWise):
+                    quad = bbox
+                    self.nn.init(data_x[0], quad)
+                # else:
+
                 # try:
                 outputs = self.nn.track(data_x[1])
                 # except:
                 #     print("Error!!!!!!")
                 #     break
-                if(len(outputs) == 8):
-                    quad_new, sx, sy, img_tcr, sx_ker, sy_ker,\
-                        img_i, quad_uns = outputs
+                if(len(outputs) == 9):
+                    quad_new, sx, sy, img_pip_tcr, sx_ker, \
+                        sy_ker, img_pip_i, quad_pip, scale_z = outputs
+                    
                     sx_ker = tensor_to_numpy(sx_ker[0])
-                    sy_ker = tensor_to_numpy(sy_ker[0])
-                    # print(sx_ker.shape)                
-                    np.save(join(sobel_out_dir, str(img_pair) + "-sx.npy"),\
+                    sy_ker = tensor_to_numpy(sy_ker[0])  
+                    np.save(join(model_out_dir, str(img_pair) + "-sx.npy"),\
                             sx_ker)
-                    np.save(join(sobel_out_dir, str(img_pair) + "-sy.npy"),\
+                    np.save(join(model_out_dir, str(img_pair) + "-sy.npy"),\
                             sy_ker)
  
-                elif(len(outputs) == 6):
-                    quad_new, sx, sy, img_tcr, img_i, quad_uns = outputs
-
-                # print(quad_new)
-                # print(quad_uns)
-                img_tcr = img_to_numpy(img_tcr[0])
-                # print(img_i.shape)
-                # img_i = img_to_numpy(img_i[0])
-
-                cv2.imwrite(join(imgs_out_dir,\
-                    str(img_pair) +"_i.jpeg"), data_x[1][0, :, :, :])
-                np.save(join(imgs_out_dir, str(img_pair) + "-quad-gt.npy"),\
-                        quad_old)
-
-                cv2.imwrite(join(sobel_out_dir,\
-                    str(img_pair) +"_tcr.jpeg"), img_tcr)
-                cv2.imwrite(join(sobel_out_dir,\
-                    str(img_pair) +"_i.jpeg"), img_i)
-
-                for j in range(len(quad_new)):
-                    resize_path = join(sobel_out_dir, str(img_pair) + "-resized")
-                    dir_path = join(sobel_out_dir, str(img_pair))
-                    make_dir(dir_path) 
-                    make_dir(resize_path) 
-                    np.save(join(resize_path, str(j) + "-quad-resized.npy"), quad_uns[j][0, :])
-                    np.save(join(dir_path, str(j) + "-quad.npy"), quad_new[j][0, :])
-            
-                np.save(join(sobel_out_dir, str(img_pair) + "-quad-resized.npy"),\
-                        quad_uns[-1][0, :])
-                np.save(join(sobel_out_dir, str(img_pair) + "-quad.npy"),\
-                        quad_new[-1][0, :])
-                # np.save(join(sobel_out_dir, str(img_pair) + "-quad-id.npy"),\
-                #         quad[0, :])
-
-                sx = img_to_numpy(sx[0])
-                sy = img_to_numpy(sy[0])
-
-                for i in range(3):
-                    cv2.imwrite(join(sobel_out_dir,\
-                        str(img_pair) + "-x-" +str(i) +".jpeg"), sx[:, :, i])
-                    cv2.imwrite(join(sobel_out_dir,\
-                        str(img_pair) + "-y-" +str(i) +".jpeg"), sy[:, :, i])
-
+                elif(len(outputs) == 7):
+                    quad_new, sx, sy, img_pip_tcr, img_pip_i,\
+                        quad_pip, scale_z = outputs
+                # print(quad_pip, quad_pip_gt)
+                sz_loss +=  huber(100, quad_pip - quad_pip_gt).mean()
+                loss += (scale_z[0]) * (scale_z[0]) * huber(100, quad_new - quad_gt).mean()
+                img_pip_tcr = img_to_numpy(img_pip_tcr[0])
                 try:
-                    iou = calc_iou(quad_new[-1][0], quad_old)
+                    iou = calc_iou(quad_new[0], quad_gt)
                     iou_list.append(iou)
                 except Exception as e: 
                     print(e)
                     break
-                quads.append(quad_new[-1][0])
+                quads.append(quad_new[0])
 
-                quad = quad_new[-1]
+                quad = quad_new
 
         end_t = time.time()
-
+        loss /= num_img_pair
+        sz_loss /= num_img_pair
         mean_iou = np.sum(iou_list) / num_img_pair
         write_to_output_file(quads, out_video + "/results.txt")
         
         outputBboxes(in_video +"/", out_video + "/images/", out_video + "/results.txt")
-
+        print("Resized loss = ", sz_loss)
+        print("Actual loss = ", loss)
         print("Total time taken = ", end_t - start_t)
         print("Mean IOU = ", mean_iou)
 
@@ -268,52 +229,52 @@ class BaseModel():
 
 
 
-    def save_checkpoint(self, epoch, filename='checkpoint.pth', best=False):
+    def save_checkpoint(self, epoch, filename='checkpoint.pth', best=False, vid=-1):
         folder = self.checkpoint_dir
         if not os.path.exists(folder):
             os.mkdir(folder)
-
+        filestr = str(epoch) + '-' + filename
         if(best):
             if (self.best != -1):
-                self.delete_checkpoint(self.best, best=True)
-            filepath = join(folder, 'best-' + str(epoch) + '-' + filename)
-        else:
-            filepath = join(folder, str(epoch) + '-' + filename)
+                self.delete_checkpoint(self.best, best=True, vid=vid)
+            filestr = 'best-' + filestr
+        if(vid != -1):
+            filestr = 'v' + str(vid) + '-' + filestr
+        # else:
+        filepath = join(folder, filestr)
 
-        torch.save({ 'state_dict' : self.nn.model.state_dict()}, filepath)
+        torch.save({ 'state_dict' : self.nn.model.state_dict(),\
+                    'optimizer' : self.optimizer.state_dict()}, filepath)
     
-    def load_checkpoint(self, epoch, filename='checkpoint.pth', best=False):
+    def load_checkpoint(self, epoch, filename='checkpoint.pth', best=False, vid=-1):
         folder = self.checkpoint_dir
+
+        filestr = str(epoch) + '-' + filename
         if(best):
-            filepath = join(folder, 'best-' + str(epoch) + '-' + filename)
-        else:
-            filepath = join(folder, str(epoch) + '-' + filename)
-        print(filepath)
+            filestr = 'best-' + filestr
+        if(vid != -1):
+            filestr = 'v' + str(vid) + '-' + filestr
+        filepath = join(folder, filestr)
+        # print(filepath)
+
         if not os.path.exists(filepath):
             raise("No model in path {}".format(filepath))            
         checkpoint = torch.load(filepath)
 
-        # own_state = self.nn.model.state_dict()
-        # for i, p in enumerate(checkpoint['state_dict'].items()):
-        #     name, param = p
-        #     # if name not in own_state:
-        #     #      continue
-        #     # if isinstance(param, Parameter):
-        #     #     # backwards compatibility for serialized parameters
-        #     #     param = param.data
-        #     if(i < 4):
-        #         own_state[name].copy_(param)
         self.nn.model.load_state_dict(checkpoint['state_dict'])
+        if 'optimizer' in checkpoint:
+           self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-    def delete_checkpoint(self, epoch, filename='checkpoint.pth', best=False):
+    def delete_checkpoint(self, epoch, filename='checkpoint.pth', best=False, vid=-1):
         folder = self.checkpoint_dir
         if not os.path.exists(folder):
             os.mkdir(folder)
-
+        filestr = str(epoch) + '-' + filename
         if(best):
-            filepath = join(folder, 'best-' + str(epoch) + '-' + filename)
-        else:
-            filepath = join(folder, str(epoch) + '-' + filename)
+            filestr = 'best-' + filestr
+        if(vid != -1):
+            filestr = 'v' + str(vid) + '-' + filestr
+        filepath = join(folder, filestr)
         if(os.path.exists(filepath)):
             os.remove(filepath)
         # torch.save({ 'state_dict' : self.nn.model.state_dict()}, filepath)

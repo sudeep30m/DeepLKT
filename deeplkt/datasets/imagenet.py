@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from deeplkt.datasets.dataset import LKTDataset
 import pickle as pkl
 from deeplkt.utils.util import pkl_load, pkl_save
+import numpy as np
 
 
 class ImageNetDataset(LKTDataset):
@@ -85,7 +86,7 @@ class ImageNetDataset(LKTDataset):
         return x_videos, y_videos, inp_ids, out_ids
     
     def get_quad(self, ann):
-        ann = [float(x) for x in ann]
+        ann = np.array([float(x) for x in ann])
         return ann
 
 

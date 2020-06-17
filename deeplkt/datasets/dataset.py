@@ -116,7 +116,7 @@ class LKTDataset(Dataset):
         for rescaled images
         Return shape: (8,)
         """
-
+        # print(type(bbox_gt))
         bbox_gt = bbox_gt[np.newaxis, :]
         bbox = x[2][np.newaxis, :]
         y_gt = get_min_max_bbox(bbox_gt)
