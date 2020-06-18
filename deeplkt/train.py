@@ -23,17 +23,17 @@ print(use_cuda)
 device = torch.device("cuda") if use_cuda else torch.device("cpu")
 
 
-# vot_root_dir = '../../data/VOT/'
-# alov_root_dir = '../../data/ALOV/'
+vot_root_dir = '../../data/VOT/'
+alov_root_dir = '../../data/ALOV/'
 
 
-# vot = VotDataset(os.path.join(vot_root_dir,
-#                        'VOT_images/'),
-#                  os.path.join(vot_root_dir,
-#                        'VOT_ann/'),
-#                  os.path.join(vot_root_dir,
-#                        'VOT_results/')
-#                 )
+vot = VotDataset(os.path.join(vot_root_dir,
+                       'VOT_images/'),
+                 os.path.join(vot_root_dir,
+                       'VOT_ann/'),
+                 os.path.join(vot_root_dir,
+                       'VOT_results/')
+                )
 
 # alov = AlovDataset(os.path.join(alov_root_dir,
 #                        'ALOV_images/'),
@@ -75,7 +75,7 @@ def count_parameters(model):
 print("Features parameters = ", count_parameters(net.attention.features))
 print("classifier parameters = ", count_parameters(net.attention.classifier))
 imagenet = pkl_load('imagenet.pkl')
-print(len(imagenet))
+# print(len(imagenet))
 
 model.train_model(imagenet)
 

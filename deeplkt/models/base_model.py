@@ -14,6 +14,8 @@ import torch
 import numpy as np
 import cv2
 from scipy.special import huber
+import nvgpu
+import gc
 
 class BaseModel():
 
@@ -36,7 +38,6 @@ class BaseModel():
 
 
     def train_model(self, dataset):
-        self.nn.model = self.nn.model.train()
 
         trainLoader, validLoader = splitData(dataset, self.params)
         total = min(self.params.train_examples, len(dataset))
@@ -53,6 +54,8 @@ class BaseModel():
         #     print("Checkpoint loaded = {}".format(lc))
         best_val = float("inf")
         for epoch in range(lc + 1, NUM_EPOCHS):
+
+            self.nn.model = self.nn.model.train()
             print("EPOCH = ", epoch)
             train_loss = 0.0
             i = 0
@@ -60,27 +63,29 @@ class BaseModel():
             start_time = time.time()
             print("Total training batches = ", len(trainLoader))
             for bind, batch in enumerate(trainLoader):
-                # print(bind)
+                print(bind)
+                # print("Starting = ", nvgpu.gpu_info()[0]['mem_used'])
                 x, ynp = get_batch(dataset, batch)
                 y = torch.tensor(ynp, device=self.nn.model.device).float()
                 self.optimizer.zero_grad()
                 self.nn.init(x[0], x[2])
-                # print(len(self.nn.train(x[1])))
                 outputs = self.nn.train(x[1])
                 y_pred = outputs[0]
                 scale_z = outputs[-1]
                 scale_z = torch.from_numpy(scale_z).to(self.nn.model.device).float()
                 scale_z = scale_z.view(scale_z.shape[0], 1)               
                 loss = self.loss(y_pred / scale_z, y / scale_z)
-                train_loss += loss
                 params = [x for x in self.nn.model.parameters() if x.requires_grad]
                 loss.backward()
-                # print(self.nn.model.vgg.sobelx.grad[0, pind[0], 0, :, :])
-                # print(self.nn.model.vgg.sobelx.grad[0, pind[1], 0, :, :])
-                # print(self.nn.model.vgg.sobelx.grad[0, pind[2], 0, :, :])
-                # print(self.nn.model.vgg.sobelx.grad[0, pind[3], 0, :, :])
 
                 self.optimizer.step()
+                train_loss += loss.detach()
+                # print(train_loss)
+
+                # print("Ending = ", nvgpu.gpu_info()[0]['mem_used'])
+        # del loss
+                # del scale_z
+                # del loss
                 # print(i)
                 i += 1
 
@@ -111,7 +116,7 @@ class BaseModel():
                     scale_z = torch.from_numpy(scale_z).to(self.nn.model.device).float()
                     scale_z = scale_z.view(scale_z.shape[0], 1)               
                     loss = self.loss(y_pred / scale_z, y / scale_z)
-                    valid_loss += loss
+                    valid_loss += loss.detach()
                     i += 1
             valid_loss /= i
             print("Validation time for {} epoch = {}".format(epoch, time.time() - start_time))

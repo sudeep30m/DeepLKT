@@ -8,6 +8,9 @@ from deeplkt.utils.visualise import draw_bbox
 from deeplkt.tracker.base_tracker import SiameseTracker
 import cv2
 import os
+import nvgpu
+import gc
+from collections import Counter
 
 class LKTTracker(SiameseTracker):
     
@@ -62,7 +65,7 @@ class LKTTracker(SiameseTracker):
                                     s_z[i], 
                                     self.channel_average[i], 
                                     ind=0))
-        z_crop = torch.cat(z_crop)        # print(z_crop)
+        z_crop = torch.cat(z_crop).to(self.model.device).float()
         self.model.template(z_crop)
         self.cnt = 0
 
@@ -88,7 +91,7 @@ class LKTTracker(SiameseTracker):
                                     np.round(s_x)[i], 
                                     self.channel_average[i],
                                     ind=1))
-        x_crop = torch.cat(x_crop)
+        x_crop = torch.cat(x_crop).to(self.model.device).float()
 
         self.cnt += 1
 
@@ -139,6 +142,7 @@ class LKTTracker(SiameseTracker):
         return:
             bbox(list):[x, y, width, height]
         """
+        # print("Start = ", nvgpu.gpu_info()[0]['mem_used'])
         w_z = self.size[:, 0] + CONTEXT_AMOUNT * np.sum(self.size, 1)
         h_z = self.size[:, 1] + CONTEXT_AMOUNT * np.sum(self.size, 1)
         s_z = np.sqrt(w_z * h_z)
@@ -150,10 +154,10 @@ class LKTTracker(SiameseTracker):
             x_crop.append(self.get_subwindow(img, self.center_pos[i],
                                     INSTANCE_SIZE,
                                     np.round(s_x)[i], self.channel_average[i]))
-        x_crop = torch.cat(x_crop)
-
+        x_crop = torch.cat(x_crop).to(self.model.device).float()
         outputs = self.model(x_crop)
         scale_z = NEW_EXEMPLAR_SIZE / s_z
+        # print("Mid = ", nvgpu.gpu_info()[0]['mem_used'])
         return outputs + (scale_z,)
  
  

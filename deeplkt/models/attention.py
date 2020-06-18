@@ -108,24 +108,23 @@ class Attention(nn.Module):
         )
         num_classes = EXEMPLAR_SIZE*EXEMPLAR_SIZE
         self.num_classes = num_classes
-        fc = torch.nn.Linear(2048, num_classes)
-        fc.weight = nn.Parameter(torch.zeros((num_classes, 2048), requires_grad=True).to(self.device).float())
-        fc.bias = nn.Parameter(torch.zeros((num_classes), requires_grad=True).to(self.device).float())
-        self.out_layer = fc
+        self.out_layer = nn.Linear(2048, num_classes)
+        self.out_layer.weight = nn.Parameter(torch.zeros((num_classes, 2048), requires_grad=True))
+        self.out_layer.bias = nn.Parameter(torch.zeros((num_classes), requires_grad=True))
+        # self.out_layer = fc
         self.softmax = nn.Softmax(dim=1)
         self.feature_size = configs[5]
 
     def forward(self, x):
         x = self.features(x)
         x = x.view(x.size(0), 256 * 6 * 6)
+        # print(x.shape)
         x = self.classifier(x)
+        # print(x.shape)
         x = self.out_layer(x) + 1.0
-        # print(x)
         x = self.softmax(x)
         x = x * self.num_classes
         x = x.view(x.size(0), EXEMPLAR_SIZE, EXEMPLAR_SIZE)
-        # print(torch.sum(x))
-        # print(x.norm(dim=))
         return x
 
     def load_pretrained(self):

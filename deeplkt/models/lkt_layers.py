@@ -260,7 +260,6 @@ class LKTLayers(nn.Module):
 
         J = sobel_tstk.bmm(grad_w)
         J = J.view(B, N * C, 6)
-        del(grad_w)
         if(mode == 4):
             J = torch.stack(
                 [J[:, :, 0], J[:, :, 3], J[:, :, 4], J[:, :, 5]], dim=2)
