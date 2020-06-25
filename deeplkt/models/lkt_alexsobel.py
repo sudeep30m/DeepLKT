@@ -5,7 +5,7 @@ from deeplkt.models.alexsobel import AlexSobel
 from deeplkt.models.base_model import BaseModel
 from deeplkt.utils.model_utils import img_to_numpy
 import numpy as np
-from deeplkt.config import *
+from deeplkt.configParams import *
 import cv2
 import torch.nn.functional as F
 

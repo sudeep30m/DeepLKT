@@ -22,7 +22,7 @@ from deeplkt.utils.util import dotdict, make_dir
 from deeplkt.utils.visualise import readDir, convertVideoToDir
 
 from deeplkt.tracker.lkt_tracker import LKTTracker
-from deeplkt.config import *
+from deeplkt.configParams import *
 
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda") if use_cuda  else torch.device("cpu") 

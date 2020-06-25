@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 
 from deeplkt.utils.util import dotdict
 from deeplkt.tracker.lkt_tracker import LKTTracker
-from deeplkt.config import *
+from deeplkt.configParams import *
 from deeplkt.utils.model_utils import img_to_numpy, tensor_to_numpy
 from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
 

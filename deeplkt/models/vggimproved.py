@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import numpy as np
 import torchvision.transforms as transforms
 import torch.nn.functional as F
-from deeplkt.config import *
+from deeplkt.configParams import *
 from time import time
 
 

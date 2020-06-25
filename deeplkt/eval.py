@@ -13,7 +13,7 @@ from deeplkt.utils.util import dotdict, pkl_load, pkl_save
 from deeplkt.utils.model_utils import best_checkpoint
 from deeplkt.utils.visualise import plot_different_results, plot_bar_graph
 from deeplkt.tracker.lkt_tracker import LKTTracker
-from deeplkt.config import *#!/usr/bin/env python
+from deeplkt.configParams import *#!/usr/bin/env python
 # coding: utf-8
 
 

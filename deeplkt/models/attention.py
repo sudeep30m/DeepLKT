@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import numpy as np
 import torchvision.transforms as transforms
 import torch.nn.functional as F
-from deeplkt.config import *
+from deeplkt.configParams import *
 from time import time
 from collections import OrderedDict
 
@@ -109,8 +109,9 @@ class Attention(nn.Module):
         num_classes = EXEMPLAR_SIZE*EXEMPLAR_SIZE
         self.num_classes = num_classes
         self.out_layer = nn.Linear(2048, num_classes)
-        self.out_layer.weight = nn.Parameter(torch.zeros((num_classes, 2048), requires_grad=True))
-        self.out_layer.bias = nn.Parameter(torch.zeros((num_classes), requires_grad=True))
+        # self.out_layer.weight = nn.Parameter(torch.zeros((num_classes, 2048), requires_grad=True))
+        # self.out_layer.bias = nn.Parameter(torch.zeros((num_classes), requires_grad=True))
+        self.relu = nn.ReLU(inplace=True)
         # self.out_layer = fc
         self.softmax = nn.Softmax(dim=1)
         self.feature_size = configs[5]
@@ -121,10 +122,13 @@ class Attention(nn.Module):
         # print(x.shape)
         x = self.classifier(x)
         # print(x.shape)
-        x = self.out_layer(x) + 1.0
-        x = self.softmax(x)
-        x = x * self.num_classes
+        x = self.out_layer(x)
+        x = self.relu(x) + 1.0
+        # x = self.softmax(x)
         x = x.view(x.size(0), EXEMPLAR_SIZE, EXEMPLAR_SIZE)
+        # print(x.shape)
+        # for i in range(x.shape[0]):
+        #     print(torch.max(x[i]), torch.sum(x[i]))
         return x
 
     def load_pretrained(self):
@@ -141,7 +145,7 @@ if __name__ == '__main__':
     # for i, ele in enumerate(l):
     #     print(i, ele)
     a = torch.ones(4, 3)
-    print(model.softmax(a) * 3)
+    # print(model.softmax(a) * 3)
     a = torch.ones((5, 3, 127, 127)).to(device)
     # print(a)
     model(a)

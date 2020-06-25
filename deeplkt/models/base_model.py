@@ -5,7 +5,7 @@ from torch.optim import SGD, Adam
 import torch.nn as nn
 from deeplkt.utils.util import make_dir, write_to_output_file
 from deeplkt.utils.visualise import outputBboxes, writeImagesToFolder
-from deeplkt.config import *
+from deeplkt.configParams import *
 from deeplkt.utils.model_utils import img_to_numpy, tensor_to_numpy
 from deeplkt.utils.model_utils import splitData, calc_iou, last_checkpoint, get_batch
 from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
@@ -31,7 +31,11 @@ class BaseModel():
         make_dir(logs_dir)
         self.logs_dir = logs_dir
         self.writer = Logger(logs_dir)
-        self.optimizer = Adam(self.nn.model.parameters())
+        # self.optimizer = Adam(self.nn.model.parameters(), lr=LR)
+        self.optimizer = SGD(   self.nn.model.parameters(),
+                                lr=LR,
+                                momentum=MOMENTUM,
+                                weight_decay=WEIGHT_DECAY)
         self.loss = nn.SmoothL1Loss()
         self.params = params
         self.best = -1
@@ -48,10 +52,10 @@ class BaseModel():
         print("Valid dataset size = ", val_total)
 
         lc = -1
-        # lc = last_checkpoint(self.checkpoint_dir)
-        # if(lc != -1):
-        #     self.load_checkpoint(lc)
-        #     print("Checkpoint loaded = {}".format(lc))
+        lc = last_checkpoint(self.checkpoint_dir)
+        if(lc != -1):
+            self.load_checkpoint(lc)
+            print("Checkpoint loaded = {}".format(lc))
         best_val = float("inf")
         for epoch in range(lc + 1, NUM_EPOCHS):
 
@@ -63,17 +67,19 @@ class BaseModel():
             start_time = time.time()
             print("Total training batches = ", len(trainLoader))
             for bind, batch in enumerate(trainLoader):
-                print(bind)
+                if bind%100 == 0:
+                    print(bind)
                 # print("Starting = ", nvgpu.gpu_info()[0]['mem_used'])
                 x, ynp = get_batch(dataset, batch)
                 y = torch.tensor(ynp, device=self.nn.model.device).float()
                 self.optimizer.zero_grad()
                 self.nn.init(x[0], x[2])
+                # print("After init = ", nvgpu.gpu_info()[0]['mem_used'])
                 outputs = self.nn.train(x[1])
                 y_pred = outputs[0]
                 scale_z = outputs[-1]
                 scale_z = torch.from_numpy(scale_z).to(self.nn.model.device).float()
-                scale_z = scale_z.view(scale_z.shape[0], 1)               
+                scale_z = scale_z.view(scale_z.shape[0], 1)
                 loss = self.loss(y_pred / scale_z, y / scale_z)
                 params = [x for x in self.nn.model.parameters() if x.requires_grad]
                 loss.backward()
@@ -269,6 +275,7 @@ class BaseModel():
         self.nn.model.load_state_dict(checkpoint['state_dict'])
         if 'optimizer' in checkpoint:
            self.optimizer.load_state_dict(checkpoint['optimizer'])
+        
 
     def delete_checkpoint(self, epoch, filename='checkpoint.pth', best=False, vid=-1):
         folder = self.checkpoint_dir

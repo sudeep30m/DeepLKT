@@ -2,7 +2,7 @@ import os
 import glob
 from deeplkt.utils.util import make_dir
 from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
-from deeplkt.config import *
+from deeplkt.configParams import *
 import numpy as np
 import cv2
 import shutil

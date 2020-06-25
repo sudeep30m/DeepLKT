@@ -8,7 +8,7 @@ from deeplkt.models.base_model import BaseModel
 
 from deeplkt.utils.util import dotdict
 from deeplkt.tracker.lkt_tracker import LKTTracker
-from deeplkt.config import *
+from deeplkt.configParams import *
 from deeplkt.datasets.imagenet import ImageNetDataset
 
 #!/usr/bin/env python
@@ -43,14 +43,14 @@ vot = VotDataset(os.path.join(vot_root_dir,
 #                        'ALOV_results/')
 #                     )
 
-from deeplkt.config import *
+from deeplkt.configParams import *
 params = dotdict({
     'mode' : MODE,
     'max_iterations' : MAX_LK_ITERATIONS,
     'epsilon' : EPSILON,
     'num_classes': NUM_CLASSES,
     'num_channels': NUM_CHANNELS,
-    'info': "AttentionLKT"
+    'info': "SegmentationLKT"
 })
 # lr = 0.0005
 # momentum = 0.5
@@ -72,10 +72,10 @@ train_params = dotdict({
 model = BaseModel(tracker, 'checkpoint', 'logs', train_params)
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-print("Features parameters = ", count_parameters(net.attention.features))
-print("classifier parameters = ", count_parameters(net.attention.classifier))
+print("Attention parameters = ", count_parameters(net.attention))
 imagenet = pkl_load('imagenet.pkl')
-# print(len(imagenet))
+# for x in model.nn.model.parameters():
+#     print(x.shape)
 
 model.train_model(imagenet)
 

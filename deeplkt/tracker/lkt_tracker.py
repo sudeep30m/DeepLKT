@@ -1,7 +1,7 @@
 import numpy as np
 import torch.nn.functional as F
 import torch
-from deeplkt.config import *
+from deeplkt.configParams import *
 from deeplkt.utils.model_utils import img_to_numpy, tensor_to_numpy
 from deeplkt.utils.bbox import get_min_max_bbox, cxy_wh_2_rect, get_region_from_corner
 from deeplkt.utils.visualise import draw_bbox
@@ -11,6 +11,11 @@ import os
 import nvgpu
 import gc
 from collections import Counter
+from deeplkt.datasets.segPreprocess import Preprocess
+from deeplkt.config import cfg
+# cfg = CN()
+cfg.merge_from_file('deeplkt/config/config.yaml')
+preprocess = Preprocess(cfg.DATASET)
 
 class LKTTracker(SiameseTracker):
     
@@ -59,12 +64,19 @@ class LKTTracker(SiameseTracker):
             self.channel_average.append(np.mean(img, axis=(0, 1)))
         self.channel_average = np.array(self.channel_average)
         z_crop = []
+        patches = []
         for i, img in enumerate(imgs):
-            z_crop.append(self.get_subwindow(img, self.center_pos[i],
+            im_patch = self.get_subwindow(img, self.center_pos[i],
                                     EXEMPLAR_SIZE,
                                     s_z[i], 
                                     self.channel_average[i], 
-                                    ind=0))
+                                    ind=0)
+            patches.append(im_patch)
+            im_patch = torch.from_numpy(im_patch)
+            z_crop.append(im_patch)
+        patches = [x.to(self.model.device).float() for x in \
+                        preprocess.get_images(patches)]
+        self.model.imgList(patches)
         z_crop = torch.cat(z_crop).to(self.model.device).float()
         self.model.template(z_crop)
         self.cnt = 0
@@ -86,11 +98,13 @@ class LKTTracker(SiameseTracker):
 
         x_crop = []
         for i, img in enumerate(imgs):
-            x_crop.append(self.get_subwindow(img, self.center_pos[i],
+            im_patch = self.get_subwindow(img, self.center_pos[i],
                                     INSTANCE_SIZE,
                                     np.round(s_x)[i], 
                                     self.channel_average[i],
-                                    ind=1))
+                                    ind=1)
+            im_patch = torch.from_numpy(im_patch)
+            x_crop.append(im_patch)
         x_crop = torch.cat(x_crop).to(self.model.device).float()
 
         self.cnt += 1
@@ -151,10 +165,17 @@ class LKTTracker(SiameseTracker):
         s_x = s_z * (INSTANCE_SIZE / EXEMPLAR_SIZE)
         x_crop = []
         for i, img in enumerate(imgs):
-            x_crop.append(self.get_subwindow(img, self.center_pos[i],
+            im_patch = self.get_subwindow(img, self.center_pos[i],
                                     INSTANCE_SIZE,
-                                    np.round(s_x)[i], self.channel_average[i]))
+                                    np.round(s_x)[i], 
+                                    self.channel_average[i],
+                                    ind=1)
+            im_patch = torch.from_numpy(im_patch)
+            x_crop.append(im_patch)
+           
         x_crop = torch.cat(x_crop).to(self.model.device).float()
+        # print("Before train = ", nvgpu.gpu_info()[0]['mem_used'])
+
         outputs = self.model(x_crop)
         scale_z = NEW_EXEMPLAR_SIZE / s_z
         # print("Mid = ", nvgpu.gpu_info()[0]['mem_used'])

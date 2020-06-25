@@ -5,7 +5,7 @@ from deeplkt.models.lkt_layers import LKTLayers
 from deeplkt.models.base_model import BaseModel
 from deeplkt.utils.model_utils import img_to_numpy
 import numpy as np
-from deeplkt.config import *
+from deeplkt.configParams import *
 import cv2
 import os
 

@@ -98,6 +98,7 @@ if __name__ == '__main__':
     # imagenet = ImageNetDataset(img_base_path, ann_base_path, result_base_path)
     # pkl_save('imagenet.pkl', imagenet)
     imagenet = pkl_load('imagenet.pkl')
+    imagenet.save_gtbox_video(421, '4.avi')
     imagenet.get_resized_image_with_gt(0, 1)
     # from IPython import embed; embed()
     

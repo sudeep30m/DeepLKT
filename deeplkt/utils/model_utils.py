@@ -4,7 +4,7 @@ import torch
 import json
 from deeplkt.utils.util import make_dir
 import numpy as np
-from deeplkt.config import *
+from deeplkt.configParams import *
 from torch.utils.data.sampler import SubsetRandomSampler
 from shapely.geometry import Polygon
 import math

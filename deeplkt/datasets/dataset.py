@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from deeplkt.utils.visualise import draw_bbox
 from deeplkt.utils.bbox import get_min_max_bbox, get_region_from_center
-from deeplkt.config import *
+from deeplkt.configParams import *
 from os.path import join
 from deeplkt.utils.util import pkl_load, pkl_save
 from deeplkt.utils.visualise import visualise_transformed_data_point
